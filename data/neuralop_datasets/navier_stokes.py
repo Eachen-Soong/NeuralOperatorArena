@@ -2,12 +2,12 @@ import torch
 from pathlib import Path
 from torchvision import transforms
 
-from neuralop1.datasets.hdf5_dataset import H5pyDataset
-from neuralop1.datasets.zarr_dataset import ZarrDataset
-from neuralop1.datasets.positional_encoding import append_2d_grid_positional_encoding
-from neuralop1.datasets.tensor_dataset import TensorDataset
-from neuralop1.utils import UnitGaussianNormalizer
-from neuralop1.datasets.transforms import Normalizer, PositionalEmbedding, MGPTensorDataset
+from .hdf5_dataset import H5pyDataset
+from .zarr_dataset import ZarrDataset
+from .positional_encoding import append_2d_grid_positional_encoding
+from .tensor_dataset import TensorDataset
+from ..utils import UnitGaussianNormalizer
+from .transforms import Normalizer, PositionalEmbedding, MGPTensorDataset
 
 def load_navier_stokes_zarr(data_path, n_train, batch_size,
                             train_resolution=128,

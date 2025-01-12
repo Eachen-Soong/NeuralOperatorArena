@@ -1,6 +1,6 @@
-from get_parser import BaseDataParser
+from .get_parser import BaseDataParser
 from data.neuralop_datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit, load_autoregressive_traintestsplit_v3, load_autoregressive_multitask_mu_preordered
-from ..data.neuralop_datasets.dataloader import ns_contextual_loader
+from data.neuralop_datasets.dataloader import ns_contextual_loader
 import torch
 import numpy as np
 import types
@@ -125,9 +125,9 @@ class TorusVisForceParser(BaseDataParser):
     
     def get_data(self, args):
         train_loader, val_loader = load_autoregressive_traintestsplit_v3(
-            data_path=args.data_path, n_train=args.n_train, n_test=args.n_test, batch_size=args.batch_size, test_batch_size = args.batch_size, 
-            train_ssr=args.train_subsample_rate, test_ssrs=args.test_subsample_rate, time_step=args.time_step,
-            positional_encoding=args.pos_encoding,
+            data_path=args.data_path, n_train=args.n_train, n_tests=args.n_test, batch_size=args.batch_size, test_batch_size = args.batch_size, 
+            train_subsample_rate=args.train_subsample_rate, test_subsample_rates=args.test_subsample_rate, time_step=args.time_step,
+            append_positional_encoding=args.pos_encoding,
             predict_feature=args.predict_feature,
         )
         if args.simaug_coeff != 0:
@@ -152,8 +152,8 @@ class MultiTaskTorusVisForceParser(BaseDataParser):
     
     def get_data(self, args):
         train_loaders, val_loaders = load_autoregressive_multitask_mu_preordered(
-            data_path=args.data_path, splits=args.splits, n_test=args.n_test, batch_size=args.batch_size, test_batch_size = args.batch_size, 
-            train_ssr=args.train_subsample_rate, test_ssrs=args.test_subsample_rate, time_step=args.time_step,
+            data_path=args.data_path, splits=args.splits, batch_size=args.batch_size, test_batch_size = args.batch_size, 
+            train_subsample_rate=args.train_subsample_rate, test_subsample_rate=args.test_subsample_rate, time_step=args.time_step,
             positional_encoding=args.pos_encoding,
             predict_feature=args.predict_feature,
         )

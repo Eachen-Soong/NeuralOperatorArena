@@ -1,9 +1,9 @@
 from pathlib import Path
 import torch
 import scipy
-from neuralop1.datasets.tensor_dataset import TensorDataset
-from neuralop1.utils import UnitGaussianNormalizer
-from neuralop1.datasets.transforms import PositionalEmbedding
+from .tensor_dataset import TensorDataset
+from ..utils import UnitGaussianNormalizer
+from .transforms import PositionalEmbedding
 
 def load_burgers(
     data_path, n_train, n_test, batch_train=32, batch_test=100, time=1, grid=[0, 1]

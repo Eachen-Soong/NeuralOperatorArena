@@ -1,7 +1,7 @@
 import h5py
 import torch
 from torch.utils.data import Dataset
-from ...utils.utils import UnitGaussianNormalizer
+from ..utils import UnitGaussianNormalizer
 from .transforms import PositionalEmbedding
 from .dataloader import ns_contextual_loader
 from torch.utils.data.dataloader import DataLoader

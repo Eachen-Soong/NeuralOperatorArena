@@ -7,6 +7,15 @@ sys.path.insert(0, parentdir)
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 import time
 
+import debugpy
+try:
+    # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+    debugpy.listen(("localhost", 9501))
+    print("Waiting for debugger attach")
+    debugpy.wait_for_client()
+except Exception as e:
+    pass
+
 import torch
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, Timer
 from lightning.pytorch.loggers import TensorBoardLogger
@@ -15,7 +24,7 @@ from lightning.pytorch.utilities.model_summary.model_summary import ModelSummary
 import lightning as L
 from lightning.pytorch import seed_everything
 from lightning_modules import MultiMetricModule
-from ..utils.training import LpLoss, H1Loss
+from utils.losses import LpLoss, H1Loss
 
 from scripts.get_parser import Fetcher
 from scripts.models import FNOParser, LSMParser
@@ -99,8 +108,9 @@ def run(raw_args=None):
                 monitor='l2', save_top_k=1
                 ),
             EarlyStopping(monitor='l2', min_delta=1e-6, patience=100),
-            Timer,
-        ], max_epochs=args.epochs,
+            Timer(),
+        ], 
+        max_epochs=args.epochs,
         logger=logger,
         )
     trainer.fit(model=module, train_dataloaders=train_loader, val_dataloaders=val_loader)

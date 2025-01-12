@@ -15,7 +15,7 @@ from lightning.pytorch.utilities.model_summary.model_summary import ModelSummary
 import lightning as L
 from lightning.pytorch import seed_everything
 from lightning_modules import MultiMetricModule
-from ..utils.training import LpLoss, H1Loss
+from utils.losses import LpLoss, H1Loss
 
 from scripts.get_parser import Fetcher
 from scripts.models import FNOParser, LSMParser

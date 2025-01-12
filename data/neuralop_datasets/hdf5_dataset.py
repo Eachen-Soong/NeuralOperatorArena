@@ -2,8 +2,8 @@ import h5py
 import torch
 from torch.utils.data import Dataset
 from ..utils import UnitGaussianNormalizer
-from ...utils.datasets.tensor_dataset import GeneralTensorDataset
-from ...utils.datasets.transforms import PositionalEmbedding
+from .tensor_dataset import GeneralTensorDataset
+from .transforms import PositionalEmbedding
 
 
 class H5pyDataset(Dataset):
