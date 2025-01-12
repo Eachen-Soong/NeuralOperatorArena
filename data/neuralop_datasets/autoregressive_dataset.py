@@ -1,10 +1,12 @@
 import h5py
 import torch
 from torch.utils.data import Dataset
-from neuralop1.utils import UnitGaussianNormalizer
-from neuralop1.datasets.transforms import PositionalEmbedding
-from neuralop1.datasets.dataloader import ns_contextual_loader
+from ...utils.utils import UnitGaussianNormalizer
+from .transforms import PositionalEmbedding
+from .dataloader import ns_contextual_loader
+from torch.utils.data.dataloader import DataLoader
 from h5py import File
+import random
 import scipy
 
 class AutoregressiveDataset(Dataset):
@@ -558,7 +560,7 @@ def load_autoregressive_traintestsplit(data_path,
 
     if train_data is not None:
         train_db = AutoregressiveDataset(train_data, subsample_rate=train_subsample_rate, time_step=time_step, predict_feature=predict_feature)
-        train_loader = torch.utils.data.DataLoader(train_db,
+        train_loader = DataLoader(train_db,
                                                 batch_size=batch_size, shuffle=True,
                                                 num_workers=0, pin_memory=True, persistent_workers=False)
     else:
@@ -566,10 +568,110 @@ def load_autoregressive_traintestsplit(data_path,
 
     if test_data is not None:
         test_db = AutoregressiveDataset(test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
-        test_loader = torch.utils.data.DataLoader(test_db,
+        test_loader = DataLoader(test_db,
                                                 batch_size=test_batch_size, shuffle=False,
                                                 num_workers=0, pin_memory=True, persistent_workers=False)
     else:
         test_loader = None
 
     return train_loader, test_loader
+
+
+def load_autoregressive_multitask_mu_preordered(data_path, 
+                        splits:list,
+                        batch_size, test_batch_size, 
+                        train_subsample_rate, test_subsample_rate,
+                        time_step,
+                        predict_feature='u',
+                        seed=42
+                        ):
+    """Create a Multi-Task Learning dataset according to mu:
+    the dataset is pre-ordered, so just simply load the dataset.
+
+    Parameters
+    ----------
+    splits : list of (train_prop, test_prop), the splits of the datasets
+        if train_prop or test_prop is 0, the counterpart would be None
+    batch_size : int
+    test_batch_size : int
+    labels: str list, default is 'x'
+        tensor labels in the data file
+    grid_boundaries : int list, default is [[0,1],[0,1]],
+    positional_encoding : bool list, default is True
+    gaussian_norm : bool list, default is False
+    norm_type : str, default is 'channel-wise'
+    channel_dim : int list, default is 1
+        where to put the channel dimension, defaults size is batch, channel, height, width
+
+    Returns
+    -------
+    train_loader, test_loader
+
+    train_loader : torch DataLoader None
+    test_loader : torch DataLoader None
+    encoders : UnitGaussianNormalizer List[UnitGaussianNormalizer] None
+    """
+    dataset_type = 'h5' if data_path.endswith('.h5') else ('pt' if data_path.endswith('.pt') else 'mat')
+    if dataset_type == 'h5':
+        data = h5py.File(data_path, 'r')
+    elif dataset_type == 'pt':
+        data = torch.load(data_path)
+    else:
+        try:
+            data = scipy.io.loadmat(data_path)
+            del data['__header__']
+            del data['__version__']
+            del data['__globals__']
+            del data['a']
+            del data['t']
+        except:
+            raise ValueError(f"Unknown dataset type: {dataset_type}")
+
+    # normalize
+    n_total = data[predict_feature].shape[0]
+    n_splits = len(splits)
+
+    sum_splits = [sum(split) for split in splits]
+    sum_sum_splits = sum(sum_splits)
+    # the sturcture of an element of train_test_splits: (total number of the split, train split)
+    new_splits = [(round(sum_splits[i] * n_total / sum_sum_splits), round(splits[i][0] * n_total / sum_sum_splits)) for i in range(n_splits)]
+    new_splits[-1][0] = n_total - sum([split[0] for split in new_splits[:-1]])
+
+    train_loaders = []
+    test_loaders = []
+    split_idx = 0
+    for i in range(n_splits):
+        new_split_idx = split_idx + new_splits[i][0]
+        tmp_train_data = {}
+        tmp_test_data  = {}
+        
+        shuffled_idx = random.shuffle(list(range(split_idx, new_split_idx)))
+        train_slice = shuffled_idx[:new_splits[i][1]]
+        test_slice = shuffled_idx[new_splits[i][1]:]
+
+        for name in data:
+            if len(train_slice):
+                tmp_train_data[name] = torch.tensor(data[name][train_slice, ...]).type(torch.float32).contiguous()
+                
+                tmp_db = AutoregressiveDataset(tmp_train_data, subsample_rate=train_subsample_rate, time_step=time_step, predict_feature=predict_feature)
+                tmp_trainloader = DataLoader(tmp_db,
+                                    batch_size=batch_size, shuffle=True,
+                                    num_workers=0, pin_memory=True, persistent_workers=False)
+            else: tmp_trainloader = None
+            
+            if len(test_slice):
+                tmp_test_data[name] = torch.tensor(data[name][test_slice, ...]).type(torch.float32).contiguous()
+                
+                tmp_db = AutoregressiveDataset(tmp_test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
+                tmp_testloader = DataLoader(tmp_db,
+                                    batch_size=batch_size, shuffle=True,
+                                    num_workers=0, pin_memory=True, persistent_workers=False)
+            else: tmp_testloader = None
+        
+        train_loaders.append(tmp_trainloader)
+        test_loaders.append(tmp_testloader)
+        split_idx = new_split_idx
+    
+    del data
+
+    return train_loaders, test_loaders

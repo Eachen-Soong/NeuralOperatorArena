@@ -7,9 +7,9 @@ import sys
 
 from typing import Union
 
-from neuralop1.training import Trainer
-from neuralop1.datasets.dataloader import ns_contextual_loader
-from neuralop1.training.callbacks import Callback
+from ..utils.training import Trainer
+from ..data.neuralop_datasets.dataloader import ns_contextual_loader
+from ..utils.training.callbacks import Callback
 
 def to_torch_tensor(data: Union[list, np.ndarray, torch.Tensor]) -> torch.Tensor:
     if isinstance(data, list):

@@ -1,5 +1,5 @@
 from get_parser import BaseModelParser
-from neuralop1.models import FNO, LSM_2D
+from models import FNO, LSM_2D
 
 
 class FNOParser(BaseModelParser):
@@ -36,6 +36,47 @@ class FNOParser(BaseModelParser):
 
 
 class LSMParser(BaseModelParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = 'LSM'
+
+    def add_parser_args(self, parser):
+        parser.add_argument('--in_dim', default=1, type=int, help='input data dimension')
+        parser.add_argument('--out_dim', default=1, type=int, help='output data dimension')
+        parser.add_argument('--h', default=421, type=int, help='input data height')
+        parser.add_argument('--w', default=421, type=int, help='input data width')
+        parser.add_argument('--T-in', default=10, type=int,
+                            help='input data time points (only for temporal related experiments)')
+        parser.add_argument('--T-out', default=10, type=int,
+                            help='predict data time points (only for temporal related experiments)')
+        parser.add_argument('--pos_encoding', type=int, default=1) ##
+        parser.add_argument('--d-model', default=64, type=int, help='channels of hidden variates')
+        parser.add_argument('--num-basis', default=12, type=int, help='number of basis operators')
+        parser.add_argument('--num-token', default=4, type=int, help='number of latent tokens')
+        parser.add_argument('--patch-size', default='6,6', type=str, help='patch size of different dimensions')
+        parser.add_argument('--padding', default='11,11', type=str, help='padding size of different dimensions')
+        parser.add_argument('--channel_mixing', type=str, default='', help='') #####
+        parser.add_argument('--num_prod', type=int, default=2) #
+
+        return parser
+
+    def get_model(self, args):
+        in_channels = args.in_dim
+        if args.pos_encoding:
+            in_channels += 2
+        out_channels = args.out_dim
+        width = args.d_model
+        num_token = args.num_token
+        num_basis = args.num_basis
+        patch_size = [int(x) for x in args.patch_size.split(',')]
+        padding = [int(x) for x in args.padding.split(',')]
+
+        model = LSM_2D(in_dim=in_channels, out_dim=out_channels, d_model=width,
+                            num_token=num_token, num_basis=num_basis, patch_size=patch_size, padding=padding, channel_mixing=args.channel_mixing, num_prod=args.num_prod)
+        return model
+    
+
+class GNOTParser(BaseModelParser):
     def __init__(self) -> None:
         super().__init__()
         self.name = 'LSM'

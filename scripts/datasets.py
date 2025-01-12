@@ -1,6 +1,6 @@
 from get_parser import BaseDataParser
-from data.neuralop_datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit, load_autoregressive_traintestsplit_v3
-from neuralop1.datasets.dataloader import ns_contextual_loader
+from data.neuralop_datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit, load_autoregressive_traintestsplit_v3, load_autoregressive_multitask_mu_preordered
+from ..data.neuralop_datasets.dataloader import ns_contextual_loader
 import torch
 import numpy as np
 import types
@@ -110,6 +110,7 @@ def gen_similar_dataloaders_dt_divided_p(origin_loader, scaling_ps, batch_size=0
 
     return sim_loaders
 
+
 class TorusVisForceParser(BaseDataParser):
     def __init__(self) -> None:
         super().__init__()
@@ -135,3 +136,26 @@ class TorusVisForceParser(BaseDataParser):
         else: print("No simaug")
 
         return train_loader, val_loader
+
+
+class MultiTaskTorusVisForceParser(BaseDataParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = 'MultiTaskTorusvisForce'
+
+    def add_parser_args(self, parser):
+        super().add_parser_args(parser)
+        parser.add_argument('--time_step', type=int, default=1, help='subsample rate of time')
+        parser.add_argument('--predict_feature', type=str, default='u')
+        parser.add_argument('--splits', nargs='+', default=[(1, 1), (1, 2)], help='train_test splits')
+        return
+    
+    def get_data(self, args):
+        train_loaders, val_loaders = load_autoregressive_multitask_mu_preordered(
+            data_path=args.data_path, splits=args.splits, n_test=args.n_test, batch_size=args.batch_size, test_batch_size = args.batch_size, 
+            train_ssr=args.train_subsample_rate, test_ssrs=args.test_subsample_rate, time_step=args.time_step,
+            positional_encoding=args.pos_encoding,
+            predict_feature=args.predict_feature,
+        )
+        
+        return train_loaders, val_loaders

@@ -38,7 +38,6 @@ def run(raw_args=None):
     
     # # # Data Preparation # # #
     train_loader, val_loader = fetcher.get_data(args)
-
     
     # # # Create Lightning Module # # #
     # 1. Model Definition
