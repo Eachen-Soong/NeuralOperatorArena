@@ -147,14 +147,13 @@ class MultiTaskTorusVisForceParser(BaseDataParser):
         super().add_parser_args(parser)
         parser.add_argument('--time_step', type=int, default=1, help='subsample rate of time')
         parser.add_argument('--predict_feature', type=str, default='u')
-        parser.add_argument('--splits', nargs='+', default=[(1, 1), (1, 2)], help='train_test splits')
         return
     
     def get_data(self, args):
         train_loaders, val_loaders = load_autoregressive_multitask_mu_preordered(
-            data_path=args.data_path, splits=args.splits, batch_size=args.batch_size, test_batch_size = args.batch_size, 
+            data_path=args.data_path, n_data=args.n_data, splits=args.splits, batch_size=args.batch_size, test_batch_size = args.batch_size, 
             train_subsample_rate=args.train_subsample_rate, test_subsample_rate=args.test_subsample_rate, time_step=args.time_step,
-            positional_encoding=args.pos_encoding,
+            append_positional_encoding=args.pos_encoding,
             predict_feature=args.predict_feature,
         )
         

@@ -7,6 +7,15 @@ sys.path.insert(0, parentdir)
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 import time
 
+# import debugpy
+# try:
+#     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+#     debugpy.listen(("localhost", 9501))
+#     print("Waiting for debugger attach")
+#     debugpy.wait_for_client()
+# except Exception as e:
+#     pass
+
 import torch
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, Timer
 from lightning.pytorch.loggers import TensorBoardLogger
@@ -14,19 +23,21 @@ from lightning.pytorch.utilities.model_summary.model_summary import ModelSummary
 
 import lightning as L
 from lightning.pytorch import seed_everything
-from lightning_modules import MultiMetricModule
+from lightning_modules import MultiTaskModule, AggregateMetricCallback
 from utils.losses import LpLoss, H1Loss
 
 from scripts.get_parser import Fetcher
 from scripts.models import FNOParser, LSMParser
-from scripts.datasets import BurgersParser, DarcyParser, TorusLiParser, TorusVisForceParser
+from scripts.datasets import MultiTaskTorusVisForceParser
+
 
 ModelParsers = [FNOParser, LSMParser]
-DataParsers = [BurgersParser, DarcyParser, TorusLiParser, TorusVisForceParser]
+DataParsers = [MultiTaskTorusVisForceParser]
 loss_dict = {'h1': H1Loss(d=2), 'l2': LpLoss(d=2, p=2)}
 
+
 def run(raw_args=None):
-    fetcher = Fetcher(DataParsers=DataParsers, ModelParsers=ModelParsers)
+    fetcher = Fetcher(DataParsers=DataParsers, ModelParsers=ModelParsers, multi_task=True)
 
     args = fetcher.parse_args(raw_args)
     verbose = args.verbose
@@ -38,7 +49,8 @@ def run(raw_args=None):
     
     # # # Data Preparation # # #
     train_loader, val_loader = fetcher.get_data(args)
-    
+
+
     # # # Create Lightning Module # # #
     # 1. Model Definition
     model = fetcher.get_model(args)
@@ -69,7 +81,9 @@ def run(raw_args=None):
         print(f'\n * Test: {eval_losses}')
         sys.stdout.flush()
 
-    module = MultiMetricModule(model=model, optimizer=optimizer, train_loss=train_loss, metric_dict=loss_dict)
+    # print(args.splits)
+    n_tasks = len(args.splits)
+    module = MultiTaskModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict, n_tasks=n_tasks)
 
     # # # Logs # # #
     save_dir = args.save_dir + '/' + args.data + '/' + args.model + '/'
@@ -93,16 +107,18 @@ def run(raw_args=None):
     # # # Training # # #
     trainer = L.Trainer(
         callbacks=[
+            AggregateMetricCallback(prefixes_to_sum=loss_dict.keys()),
             ModelCheckpoint(
                 dirpath=log_path, 
                 monitor='l2', save_top_k=1
                 ),
             EarlyStopping(monitor='l2', min_delta=1e-6, patience=100),
-            Timer,
+            Timer(),
         ], max_epochs=args.epochs,
         logger=logger,
         )
     trainer.fit(model=module, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
 if __name__ == '__main__':
+
     run()

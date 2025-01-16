@@ -79,7 +79,7 @@ def run(raw_args=None):
         print(f'\n * Test: {eval_losses}')
         sys.stdout.flush()
 
-    module = MultiMetricModule(model=model, optimizer=optimizer, train_loss=train_loss, metric_dict=loss_dict)
+    module = MultiMetricModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict)
 
     # # # Logs # # #
     save_dir = args.save_dir + '/' + args.data + '/' + args.model + '/'

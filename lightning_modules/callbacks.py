@@ -3,6 +3,10 @@ import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint
 from typing import Optional
 import psutil
+import string
+from lightning.pytorch.utilities import CombinedLoader
+from lightning.pytorch.trainer import Trainer
+
 """
 TODO: 
 0. log model infos into run file on init start
@@ -51,6 +55,51 @@ class MemoryMonitoringCallback(L.Callback):
         self.log_memory_usage('Test End')
 
 
+class AggregateMetricCallback(L.Callback):
+    """
+        Aggregates all metrics with a certain prefix into a metric named by the prefix.
+        E.g. 'l2/dataloader_idx_0' 'l2/dataloader_idx_1' -> 'l2'
+    """
+
+    def __init__(self, prefixes_to_sum:list, method='sum'):
+        super().__init__()
+        self.prefixes_to_sum = prefixes_to_sum
+        self.metric_groups = {}
+        self.method = method
+
+    def group_metrics(self, metrics):
+        metric_groups = {}
+        for prefix in self.prefixes_to_sum:
+            metric_groups[prefix] = []
+        for name in metrics:
+            for prefix in self.prefixes_to_sum:
+                if name.startswith(prefix) and len(name) > len(prefix):
+                    if name[len(prefix)] == '/':
+                        metric_groups[prefix].append(name)
+                        break
+        return metric_groups
+
+    def on_train_start(self, trainer:Trainer, pl_module:L.LightningModule):
+        metric_names = trainer.callback_metrics.keys()
+        self.metric_groups = self.group_metrics(metric_names)
+        return super().on_train_start(trainer, pl_module)
+    
+    def aggregate_metrics(self, logs):
+        new_logs = {}
+        for key, metric_list in self.metric_groups.items():
+            new_logs[key] = 0.
+            for metric in metric_list:
+                new_logs[key] += logs[metric]
+            if self.method == 'mean':
+                if len(metric_list):
+                    new_logs[key] /= len(metric_list)
+        return new_logs
+
+    def on_train_epoch_end(self, trainer:Trainer, pl_module:L.LightningModule):
+        logs = trainer.callback_metrics
+        pl_module.log_dict(self.aggregate_metrics(logs))
+        return super().on_train_epoch_end(trainer, pl_module)
+        
 
 # class LossNomorlizationCallback(L.Callback):
 #     def __init__(self, std:Optional[float]=None) -> None:

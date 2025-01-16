@@ -577,12 +577,15 @@ def load_autoregressive_traintestsplit(data_path,
     return train_loader, test_loader
 
 
-def load_autoregressive_multitask_mu_preordered(data_path, 
+def load_autoregressive_multitask_mu_preordered(
+                        data_path, 
                         splits:list,
                         batch_size, test_batch_size, 
                         train_subsample_rate, test_subsample_rate,
                         time_step,
+                        n_data=-1,  
                         predict_feature='u',
+                        append_positional_encoding=True,
                         seed=42
                         ):
     """Create a Multi-Task Learning dataset according to mu:
@@ -626,16 +629,30 @@ def load_autoregressive_multitask_mu_preordered(data_path,
             del data['t']
         except:
             raise ValueError(f"Unknown dataset type: {dataset_type}")
+    if type(test_subsample_rate) == type([]):
+        test_subsample_rate = test_subsample_rate[0]
 
-    # normalize
+    # get part of the total dataset
     n_total = data[predict_feature].shape[0]
+    if n_data != -1:
+        new_data = {}
+        shuffled_idx = list(range(n_total))
+        random.shuffle(shuffled_idx)
+        chosen_data = sorted(shuffled_idx)
+        for name in data:
+            new_data[name] = data[name][chosen_data]
+        n_total = n_data
+        del data
+        data = new_data
+    
+    # normalize
     n_splits = len(splits)
 
     sum_splits = [sum(split) for split in splits]
     sum_sum_splits = sum(sum_splits)
     # the sturcture of an element of train_test_splits: (total number of the split, train split)
-    new_splits = [(round(sum_splits[i] * n_total / sum_sum_splits), round(splits[i][0] * n_total / sum_sum_splits)) for i in range(n_splits)]
-    new_splits[-1][0] = n_total - sum([split[0] for split in new_splits[:-1]])
+    new_splits = [(round(sum_splits[i] * n_total / sum_sum_splits), round(splits[i][0] * n_total / sum_sum_splits)) for i in range(n_splits-1)]
+    new_splits.append((n_total - sum([split[0] for split in new_splits[:]]), round(splits[-1][0] * n_total / sum_sum_splits)))
 
     train_loaders = []
     test_loaders = []
@@ -644,29 +661,39 @@ def load_autoregressive_multitask_mu_preordered(data_path,
         new_split_idx = split_idx + new_splits[i][0]
         tmp_train_data = {}
         tmp_test_data  = {}
-        
-        shuffled_idx = random.shuffle(list(range(split_idx, new_split_idx)))
-        train_slice = shuffled_idx[:new_splits[i][1]]
-        test_slice = shuffled_idx[new_splits[i][1]:]
+        shuffled_idx = list(range(split_idx, new_split_idx))
+        random.shuffle(shuffled_idx)
+        train_slice = sorted(shuffled_idx[:new_splits[i][1]])
+        test_slice = sorted(shuffled_idx[new_splits[i][1]:])
 
         for name in data:
             if len(train_slice):
                 tmp_train_data[name] = torch.tensor(data[name][train_slice, ...]).type(torch.float32).contiguous()
                 
-                tmp_db = AutoregressiveDataset(tmp_train_data, subsample_rate=train_subsample_rate, time_step=time_step, predict_feature=predict_feature)
-                tmp_trainloader = DataLoader(tmp_db,
-                                    batch_size=batch_size, shuffle=True,
-                                    num_workers=0, pin_memory=True, persistent_workers=False)
             else: tmp_trainloader = None
             
             if len(test_slice):
                 tmp_test_data[name] = torch.tensor(data[name][test_slice, ...]).type(torch.float32).contiguous()
                 
-                tmp_db = AutoregressiveDataset(tmp_test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
-                tmp_testloader = DataLoader(tmp_db,
-                                    batch_size=batch_size, shuffle=True,
-                                    num_workers=0, pin_memory=True, persistent_workers=False)
             else: tmp_testloader = None
+        
+        tmp_train_db = AutoregressiveDataset(tmp_train_data, subsample_rate=train_subsample_rate, time_step=time_step, predict_feature=predict_feature)
+        # tmp_trainloader = DataLoader(tmp_train_db,
+        #                     batch_size=batch_size, shuffle=True,
+        #                     num_workers=0, pin_memory=True, persistent_workers=False)
+        tmp_trainloader = ns_contextual_loader(tmp_train_db,
+                            batch_size=batch_size, shuffle=True,
+                            num_workers=0,
+                            append_positional_encoding=append_positional_encoding)
+        
+        tmp_test_db = AutoregressiveDataset(tmp_test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
+        # tmp_testloader = DataLoader(tmp_test_db,
+        #                     batch_size=batch_size, shuffle=True,
+        #                     num_workers=0, pin_memory=True, persistent_workers=False)
+        tmp_testloader = ns_contextual_loader(tmp_test_db,
+                                           batch_size=test_batch_size, shuffle=False,
+                                           num_workers=0,
+                                           append_positional_encoding=append_positional_encoding)
         
         train_loaders.append(tmp_trainloader)
         test_loaders.append(tmp_testloader)
