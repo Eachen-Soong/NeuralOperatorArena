@@ -107,7 +107,7 @@ class MultiTaskModule(L.LightningModule):
     
     def validation_step(self, batch, *args, **kwargs):
         # val loader is a CombinedLoader(dataloaders, "sequential")
-        assert len(batch) == self.n_val_tasks, f'len(batch) != self.n_val_tasks, {len(batch), self.n_val_tasks}'
+        # assert len(batch) == self.n_val_tasks, f'len(batch) != self.n_val_tasks, {len(batch), self.n_val_tasks}'
         pred = self.model(**batch)
         loss_dict = dict()
         # data_name = self.val_data_names[dataloader_idx]

@@ -9,7 +9,7 @@ from .normalization_layers import AdaIN
 from .skip_connections import skip_connection
 from .spectral_convolution import SpectralConv
 from ..utils import validate_scaling_factor
-
+from .moe_mlp_field import MoeMLP
 
 Number = Union[int, float]
 
@@ -451,6 +451,13 @@ class FNOBlocks1(nn.Module):
             self.channel_mixer = nn.ModuleList(
                 [
                     QuadPath(in_dim=self.out_channels,out_dim=self.out_channels,num_quad=num_prod, num_prod=num_prod)
+                    for _ in range(n_layers)
+                ]
+            )
+        elif channel_mixing == 'moe':
+            self.channel_mixer = nn.ModuleList(
+                [
+                    MoeMLP(in_channels=self.out_channels, out_channels=self.out_channels, )
                     for _ in range(n_layers)
                 ]
             )
