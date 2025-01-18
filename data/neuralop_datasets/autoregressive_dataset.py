@@ -210,7 +210,7 @@ def load_autoregressive_traintestsplit_v3(
         train_db = AutoregressiveDataset(train_data, subsample_rate=train_subsample_rate, time_step=time_step, predict_feature=predict_feature)
         train_loader = ns_contextual_loader(train_db,
                                             batch_size=batch_size, shuffle=True,
-                                            num_workers=0,
+                                            num_workers=71,
                                             append_positional_encoding=append_positional_encoding)
     else:
         train_loader = None
@@ -269,7 +269,7 @@ def load_autoregressive_traintestsplit_v3(
             test_db = AutoregressiveDataset(test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
             test_loader = ns_contextual_loader(test_db,
                                             batch_size=test_batch_size, shuffle=False,
-                                            num_workers=0,
+                                            num_workers=71,
                                             append_positional_encoding=append_positional_encoding)
         else:
             test_loader = None
@@ -378,7 +378,7 @@ def load_autoregressive_traintestsplit_v2(
         train_db = AutoregressiveDataset(train_data, subsample_rate=train_subsample_rate, time_step=time_step, predict_feature=predict_feature)
         train_loader = ns_contextual_loader(train_db,
                                             batch_size=batch_size, shuffle=True,
-                                            num_workers=0,
+                                            num_workers=71,
                                             append_positional_encoding=append_positional_encoding)
     else:
         train_loader = None
@@ -387,7 +387,7 @@ def load_autoregressive_traintestsplit_v2(
         test_db = AutoregressiveDataset(test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
         test_loader = ns_contextual_loader(test_db,
                                            batch_size=test_batch_size, shuffle=False,
-                                           num_workers=0,
+                                           num_workers=71,
                                            append_positional_encoding=append_positional_encoding)
     else:
         test_loader = None
@@ -471,7 +471,7 @@ def load_autoregressive_traintestsplit_v1(data_path,
         train_db = AutoregressiveDataset(train_data, subsample_rate=train_subsample_rate, time_step=time_step, predict_feature=predict_feature)
         train_loader = ns_contextual_loader(train_db,
                                             batch_size=batch_size, shuffle=True,
-                                            num_workers=0,
+                                            num_workers=71,
                                             append_positional_encoding=append_positional_encoding)
     else:
         train_loader = None
@@ -480,7 +480,7 @@ def load_autoregressive_traintestsplit_v1(data_path,
         test_db = AutoregressiveDataset(test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
         test_loader = ns_contextual_loader(test_db,
                                            batch_size=test_batch_size, shuffle=False,
-                                           num_workers=0,
+                                           num_workers=71,
                                            append_positional_encoding=append_positional_encoding)
     else:
         test_loader = None
@@ -562,7 +562,7 @@ def load_autoregressive_traintestsplit(data_path,
         train_db = AutoregressiveDataset(train_data, subsample_rate=train_subsample_rate, time_step=time_step, predict_feature=predict_feature)
         train_loader = DataLoader(train_db,
                                                 batch_size=batch_size, shuffle=True,
-                                                num_workers=0, pin_memory=True, persistent_workers=False)
+                                                num_workers=71, pin_memory=True, persistent_workers=False)
     else:
         train_loader = None
 
@@ -570,7 +570,7 @@ def load_autoregressive_traintestsplit(data_path,
         test_db = AutoregressiveDataset(test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
         test_loader = DataLoader(test_db,
                                                 batch_size=test_batch_size, shuffle=False,
-                                                num_workers=0, pin_memory=True, persistent_workers=False)
+                                                num_workers=71, pin_memory=True, persistent_workers=False)
     else:
         test_loader = None
 
@@ -683,7 +683,7 @@ def load_autoregressive_multitask_mu_preordered(
         #                     num_workers=0, pin_memory=True, persistent_workers=False)
         tmp_trainloader = ns_contextual_loader(tmp_train_db,
                             batch_size=batch_size, shuffle=True,
-                            num_workers=0,
+                            num_workers=71,
                             append_positional_encoding=append_positional_encoding)
         
         tmp_test_db = AutoregressiveDataset(tmp_test_data, subsample_rate=test_subsample_rate, time_step=time_step, predict_feature=predict_feature)
@@ -692,7 +692,7 @@ def load_autoregressive_multitask_mu_preordered(
         #                     num_workers=0, pin_memory=True, persistent_workers=False)
         tmp_testloader = ns_contextual_loader(tmp_test_db,
                                            batch_size=test_batch_size, shuffle=False,
-                                           num_workers=0,
+                                           num_workers=71,
                                            append_positional_encoding=append_positional_encoding)
         
         train_loaders.append(tmp_trainloader)

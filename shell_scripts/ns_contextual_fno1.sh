@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=2
 
 python -m scripts.train_multitask MultiTaskTorusvisForce FNO \
     --data_path /data/ycsong/data/ns_contextual/ns_random_forces_v0.h5 \
@@ -9,7 +9,7 @@ python -m scripts.train_multitask MultiTaskTorusvisForce FNO \
     --test_subsample_rate 4 \
     --time_step 4 \
     --n_modes 21 \
-    --channel_mixing moe \
+    --channel_mixing mlp \
     --mixing_layers 4 \
     --num_prod 0 \
     --n_layers 4 \
