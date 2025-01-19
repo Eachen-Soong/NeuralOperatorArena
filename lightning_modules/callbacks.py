@@ -6,13 +6,15 @@ import psutil
 import string
 from lightning.pytorch.utilities import CombinedLoader
 from lightning.pytorch.trainer import Trainer
+import os
 
 """
-TODO: 
-0. log model infos into run file on init start
-1. CKPT auto-save
-2. testing
-3. prediction: 2D case visualization
+    Multitask Learning module is somehow not compatible with the ModelCheckpoint Callback 
+    of Lightning, so we implemented a version of that on our own.
+
+    TODO: 
+    1. testing
+    1. prediction: 2D case visualization
 
 """
 
@@ -55,6 +57,64 @@ class MemoryMonitoringCallback(L.Callback):
         self.log_memory_usage('Test End')
 
 
+class CustomModelCheckpoint(L.Callback):
+    def __init__(self, dirpath, monitor='val_loss', mode='min', save_top_k=1):
+        """
+            ModelCheckpoint Callback
+        """
+        super().__init__()
+        self.dirpath = dirpath
+        self.monitor = monitor
+        self.mode = mode
+        self.save_top_k = save_top_k
+        self.best_scores = []
+        self.best_paths = []
+
+        if mode not in ['min', 'max']:
+            raise ValueError("mode should be 'min' or 'max'")
+
+        self.compare_op = min if mode == 'min' else max
+        self.best_score = float('inf') if mode == 'min' else float('-inf')
+
+        if not os.path.exists(dirpath):
+            os.makedirs(dirpath)
+
+    def on_validation_end(self, trainer, pl_module):
+        current_score = trainer.callback_metrics.get(self.monitor)
+
+        if current_score is None:
+            pl_module.print(f"Metric {self.monitor} not found. Skipping checkpointing.")
+            return
+
+        current_score = current_score.item()
+
+        is_best = self.compare_op(current_score, self.best_score) == current_score
+
+        if is_best:
+            self.best_score = current_score
+            checkpoint_path = os.path.join(
+                self.dirpath,
+                f"best_model-{self.monitor}={current_score:.4f}.ckpt"
+            )
+            self._save_checkpoint(trainer, pl_module, checkpoint_path)
+
+    def _save_checkpoint(self, trainer, pl_module, checkpoint_path):
+        trainer.save_checkpoint(checkpoint_path)
+        pl_module.print(f"Saved best model to {checkpoint_path}")
+
+        self.best_paths.append(checkpoint_path)
+        self.best_scores.append(self.best_score)
+
+        if len(self.best_paths) > self.save_top_k:
+            idx_to_remove = self.best_scores.index(self.compare_op(self.best_scores))
+            path_to_remove = self.best_paths.pop(idx_to_remove)
+            self.best_scores.pop(idx_to_remove)
+
+            if os.path.exists(path_to_remove):
+                os.remove(path_to_remove)
+                pl_module.print(f"Removed old model checkpoint: {path_to_remove}")
+
+
 class AggregateMetricCallback(L.Callback):
     """
         Aggregates all metrics with a certain prefix into a metric named by the prefix.
@@ -78,11 +138,6 @@ class AggregateMetricCallback(L.Callback):
                         metric_groups[prefix].append(name)
                         break
         return metric_groups
-
-    # def on_train_start(self, trainer:Trainer, pl_module:L.LightningModule):
-    #     metric_names = trainer.callback_metrics.keys()
-    #     self.metric_groups = self.group_metrics(metric_names)
-    #     return super().on_train_start(trainer, pl_module)
     
     def aggregate_metrics(self, logs):
         new_logs = {}
@@ -96,23 +151,20 @@ class AggregateMetricCallback(L.Callback):
                     new_logs[key] /= len(metric_list)
             print(f'{key}: {new_logs[key]}')
         return new_logs
-
-    def on_train_epoch_end(self, trainer:Trainer, pl_module:L.LightningModule):
-        logs = trainer.callback_metrics
-        if not len(self.metric_groups):
-            metric_names = trainer.callback_metrics.keys()
-            self.metric_groups = self.group_metrics(metric_names)
-        pl_module.log_dict(self.aggregate_metrics(logs))
-        return super().on_train_epoch_end(trainer, pl_module)
         
-    def on_validation_epoch_end(self, trainer, pl_module):
+    def on_validation_epoch_end(self, trainer:Trainer, pl_module:L.LightningModule):
         logs = trainer.callback_metrics
-        if not len(self.metric_groups):
+        total_metric_len = sum([len(value) for _, value in self.metric_groups.items()])
+        if not total_metric_len:
             metric_names = trainer.callback_metrics.keys()
-            self.metric_groups = self.group_metrics(metric_names)
+            metric_groups = self.group_metrics(metric_names)
+            total_metric_len = sum([len(value) for _, value in metric_groups.items()])
+            if total_metric_len:
+                self.metric_groups = metric_groups
+                print("self.metric_groups set: ", metric_names, self.metric_groups)
         pl_module.log_dict(self.aggregate_metrics(logs))
-        print(trainer.callback_metrics)
         return super().on_validation_epoch_end(trainer, pl_module)
+
 
 class FooCallback(L.Callback):
     """

@@ -7,14 +7,14 @@ sys.path.insert(0, parentdir)
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 import time
 
-import debugpy
-try:
-    # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
-    debugpy.listen(("localhost", 9501))
-    print("Waiting for debugger attach")
-    debugpy.wait_for_client()
-except Exception as e:
-    pass
+# import debugpy
+# try:
+#     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+#     debugpy.listen(("localhost", 9501))
+#     print("Waiting for debugger attach")
+#     debugpy.wait_for_client()
+# except Exception as e:
+#     pass
 
 import torch
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, Timer
@@ -23,7 +23,7 @@ from lightning.pytorch.utilities.model_summary.model_summary import ModelSummary
 
 import lightning as L
 from lightning.pytorch import seed_everything
-from lightning_modules import MultiTaskModule, AggregateMetricCallback
+from lightning_modules import MultiTaskModule, AggregateMetricCallback, CustomModelCheckpoint
 from utils.losses import LpLoss, H1Loss
 
 from scripts.get_parser import Fetcher
@@ -108,14 +108,19 @@ def run(raw_args=None):
     trainer = L.Trainer(
         callbacks=[
             AggregateMetricCallback(prefixes_to_sum=loss_dict.keys()),
-            ModelCheckpoint(
+            # ModelCheckpoint(
+            #     dirpath=log_path, 
+            #     monitor='l2', save_top_k=1
+            #     ),
+            CustomModelCheckpoint(
                 dirpath=log_path, 
-                monitor='l2/dataloader_idx_0', save_top_k=1
-                ),
+                monitor='l2', save_top_k=1
+            ),
             EarlyStopping(monitor='l2', min_delta=1e-6, patience=100),
             Timer(),
         ], max_epochs=args.epochs,
         logger=logger,
+        default_root_dir=log_path
         )
     trainer.fit(model=module, train_dataloaders=train_loader, val_dataloaders=val_loader)
 

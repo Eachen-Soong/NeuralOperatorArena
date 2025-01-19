@@ -103,10 +103,10 @@ def run(raw_args=None):
     # # # Training # # #
     trainer = L.Trainer(
         callbacks=[
-            FooCallback(),
+            # FooCallback(),
             ModelCheckpoint(
                 dirpath=log_path, 
-                monitor='l2_', save_top_k=1
+                monitor='l2', save_top_k=1
                 ),
             EarlyStopping(monitor='l2', min_delta=1e-6, patience=100),
             Timer(),
@@ -114,7 +114,7 @@ def run(raw_args=None):
         max_epochs=args.epochs,
         logger=logger,
         )
-    trainer.fit(model=module, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    trainer.fit(model=module, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=log_path)
 
 if __name__ == '__main__':
     run()

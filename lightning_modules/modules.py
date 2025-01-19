@@ -45,6 +45,9 @@ class MultiMetricModule(L.LightningModule):
         self.log('predict_value', pred)
         return pred
     
+    def on_validation_end(self) -> None:
+        return super().on_validation_end()
+    
 
 class MultiTaskModule(L.LightningModule):
     """
