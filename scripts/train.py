@@ -23,7 +23,7 @@ from lightning.pytorch.utilities.model_summary.model_summary import ModelSummary
 
 import lightning as L
 from lightning.pytorch import seed_everything
-from lightning_modules import MultiMetricModule
+from lightning_modules import MultiMetricModule, FooCallback
 from utils.losses import LpLoss, H1Loss
 
 from scripts.get_parser import Fetcher
@@ -103,9 +103,10 @@ def run(raw_args=None):
     # # # Training # # #
     trainer = L.Trainer(
         callbacks=[
+            FooCallback(),
             ModelCheckpoint(
                 dirpath=log_path, 
-                monitor='l2', save_top_k=1
+                monitor='l2_', save_top_k=1
                 ),
             EarlyStopping(monitor='l2', min_delta=1e-6, patience=100),
             Timer(),

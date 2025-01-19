@@ -128,14 +128,3 @@ class MultiTaskModule(L.LightningModule):
         self.log('predict_value', pred)
         return pred
     
-    
-class MultiTaskMoEModule(L.LightningModule):
-    """
-    Multi-Task Learning Pytorch-Lightning module for AI for Science Tasks.
-    Defines the train/val/test/predict steps, the major features are:
-        1. The prediction target for each batch is batch['y']
-
-    Must be cocupled with the MultiTask DataModule!
-    TODO: add single metric
-    """
-    pass

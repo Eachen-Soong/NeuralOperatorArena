@@ -79,10 +79,10 @@ class AggregateMetricCallback(L.Callback):
                         break
         return metric_groups
 
-    def on_train_start(self, trainer:Trainer, pl_module:L.LightningModule):
-        metric_names = trainer.callback_metrics.keys()
-        self.metric_groups = self.group_metrics(metric_names)
-        return super().on_train_start(trainer, pl_module)
+    # def on_train_start(self, trainer:Trainer, pl_module:L.LightningModule):
+    #     metric_names = trainer.callback_metrics.keys()
+    #     self.metric_groups = self.group_metrics(metric_names)
+    #     return super().on_train_start(trainer, pl_module)
     
     def aggregate_metrics(self, logs):
         new_logs = {}
@@ -90,16 +90,55 @@ class AggregateMetricCallback(L.Callback):
             new_logs[key] = 0.
             for metric in metric_list:
                 new_logs[key] += logs[metric]
+                # print(f'{metric}: {logs[metric]}')
             if self.method == 'mean':
                 if len(metric_list):
                     new_logs[key] /= len(metric_list)
+            print(f'{key}: {new_logs[key]}')
         return new_logs
 
     def on_train_epoch_end(self, trainer:Trainer, pl_module:L.LightningModule):
         logs = trainer.callback_metrics
+        if not len(self.metric_groups):
+            metric_names = trainer.callback_metrics.keys()
+            self.metric_groups = self.group_metrics(metric_names)
         pl_module.log_dict(self.aggregate_metrics(logs))
         return super().on_train_epoch_end(trainer, pl_module)
         
+    def on_validation_epoch_end(self, trainer, pl_module):
+        logs = trainer.callback_metrics
+        if not len(self.metric_groups):
+            metric_names = trainer.callback_metrics.keys()
+            self.metric_groups = self.group_metrics(metric_names)
+        pl_module.log_dict(self.aggregate_metrics(logs))
+        print(trainer.callback_metrics)
+        return super().on_validation_epoch_end(trainer, pl_module)
+
+class FooCallback(L.Callback):
+    """
+        Aggregates all metrics with a certain prefix into a metric named by the prefix.
+        E.g. 'l2/dataloader_idx_0' 'l2/dataloader_idx_1' -> 'l2'
+    """
+
+    def __init__(self, suffix='_'):
+        super().__init__()
+        self.suffix = suffix
+        self.metric_groups = {}
+
+    def group_metrics(self, metrics):
+        metric_groups = {}
+        for name in metrics:
+            metric_groups[name] = name+self.suffix
+        return metric_groups
+
+    def on_train_epoch_end(self, trainer:Trainer, pl_module:L.LightningModule):
+        logs = trainer.callback_metrics
+        if not len(self.metric_groups):
+            metric_names = trainer.callback_metrics.keys()
+            self.metric_groups = self.group_metrics(metric_names)
+        new_logs = {self.metric_groups[key]: logs[key] for key in self.metric_groups.keys()}
+        pl_module.log_dict(new_logs)
+        return super().on_train_epoch_end(trainer, pl_module)
 
 # class LossNomorlizationCallback(L.Callback):
 #     def __init__(self, std:Optional[float]=None) -> None:
