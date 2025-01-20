@@ -30,17 +30,7 @@ class BaseDataParser():
 
 def add_base_args(parser:argparse.ArgumentParser, multi_task = False):
     # # # Data Loader Configs # # #
-    parser.add_argument('--data_path', type=str, default='', help="the path of data file")
-    if multi_task:
-        parser.add_argument('--n_data', type=int, default=-1)
-        parser.add_argument('--splits', nargs='+', default=[(4, 1), (4, 1), (4, 1), (4, 1)], help='train_test splits')
-    else:
-        parser.add_argument('--n_train', type=int, default=-1)
-        parser.add_argument('--n_test', type=int, default=-1)
     parser.add_argument('--batch_size', type=int, default=32) #
-    parser.add_argument('--train_subsample_rate', type=int, default=1)
-    parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
-    # parser.add_argument('--predict_feature', type=str, default='u')
     # # # Model Configs # # #
     parser.add_argument('--load_path', type=str, default='', help='load checkpoint')
     # # # Optimizer Configs # # #
@@ -53,11 +43,10 @@ def add_base_args(parser:argparse.ArgumentParser, multi_task = False):
     parser.add_argument('--save_dir', type=str, default='./runs')
     parser.add_argument('--version_of_time', type=int, default=1, help='whether to use program start time as suffix')
     parser.add_argument('--monitor', type=str, default='val_err_l2', help='train_test splits')
-
     # # # Trainer Configs # # #
     parser.add_argument('--epochs', type=int, default=501) #
     parser.add_argument('--verbose', type=int, default=1)
-    parser.add_argument('--random_seed', type=int, default=0)
+    parser.add_argument('--random_seed', type=int, default=0, help='whether to use random seed')
     parser.add_argument('--seed', type=int, default=0)
     return
 

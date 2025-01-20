@@ -1,6 +1,6 @@
 from .get_parser import BaseDataParser
-from data.neuralop_datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit, load_autoregressive_traintestsplit_v3, load_autoregressive_multitask_mu_preordered
-from data.neuralop_datasets.dataloader import ns_contextual_loader
+from data.datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit, load_autoregressive_traintestsplit_v3, load_autoregressive_multitask_mu_preordered
+from data.datasets.dataloader import ns_contextual_loader
 import torch
 import numpy as np
 import types
@@ -14,6 +14,11 @@ class BurgersParser(BaseDataParser):
 
     def add_parser_args(self, parser):
         super().add_parser_args(parser)
+        parser.add_argument('--data_path', type=str, default='', help="the path of data file")
+        parser.add_argument('--n_train', type=int, default=-1)
+        parser.add_argument('--n_test', type=int, default=-1)
+        parser.add_argument('--train_subsample_rate', type=int, default=1)
+        parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
         return
     
     def get_data(self, args):
@@ -32,6 +37,11 @@ class DarcyParser(BaseDataParser):
 
     def add_parser_args(self, parser):
         super().add_parser_args(parser)
+        parser.add_argument('--data_path', type=str, default='', help="the path of data file")
+        parser.add_argument('--n_train', type=int, default=-1)
+        parser.add_argument('--n_test', type=int, default=-1)
+        parser.add_argument('--train_subsample_rate', type=int, default=1)
+        parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
         return
     
     def get_data(self, args):
@@ -51,6 +61,11 @@ class TorusLiParser(BaseDataParser):
 
     def add_parser_args(self, parser):
         super().add_parser_args(parser)
+        parser.add_argument('--data_path', type=str, default='', help="the path of data file")
+        parser.add_argument('--n_train', type=int, default=-1)
+        parser.add_argument('--n_test', type=int, default=-1)
+        parser.add_argument('--train_subsample_rate', type=int, default=1)
+        parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
         parser.add_argument('--time_step', type=int, default=1, help='subsample rate of time')
         parser.add_argument('--predict_feature', type=str, default='u')
         return
@@ -118,6 +133,11 @@ class TorusVisForceParser(BaseDataParser):
 
     def add_parser_args(self, parser):
         super().add_parser_args(parser)
+        parser.add_argument('--data_path', type=str, default='', help="the path of data file")
+        parser.add_argument('--n_train', type=int, default=-1)
+        parser.add_argument('--n_test', type=int, default=-1)
+        parser.add_argument('--train_subsample_rate', type=int, default=1)
+        parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
         parser.add_argument('--time_step', type=int, default=1, help='subsample rate of time')
         parser.add_argument('--predict_feature', type=str, default='u')
         parser.add_argument('--simaug_coeff', type=int, nargs='+', default=0)
@@ -145,12 +165,44 @@ class MultiTaskTorusVisForceParser(BaseDataParser):
 
     def add_parser_args(self, parser):
         super().add_parser_args(parser)
+        parser.add_argument('--data_path', type=str, default='', help="the path of data file")
+        parser.add_argument('--n_data', type=int, default=-1)
+        parser.add_argument('--splits', nargs='+', default=[(4, 1), (4, 1), (4, 1), (4, 1)], help='train_test splits')
+        parser.add_argument('--train_subsample_rate', type=int, default=1)
+        parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
         parser.add_argument('--time_step', type=int, default=1, help='subsample rate of time')
         parser.add_argument('--predict_feature', type=str, default='u')
         return
     
     def get_data(self, args):
         train_loaders, val_loaders = load_autoregressive_multitask_mu_preordered(
+            data_path=args.data_path, n_data=args.n_data, splits=args.splits, batch_size=args.batch_size, test_batch_size = args.batch_size, 
+            train_subsample_rate=args.train_subsample_rate, test_subsample_rate=args.test_subsample_rate, time_step=args.time_step,
+            append_positional_encoding=args.pos_encoding,
+            predict_feature=args.predict_feature,
+        )
+        
+        return train_loaders, val_loaders
+
+
+class MultiTaskTorusVisForceParser(BaseDataParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = 'MultiTaskTorusvisForce'
+
+    def add_parser_args(self, parser):
+        super().add_parser_args(parser)
+        parser.add_argument('--data_path', type=str, default='', help="the path of data file")
+        parser.add_argument('--n_data', type=int, default=-1)
+        parser.add_argument('--splits', nargs='+', default=[(4, 1), (4, 1), (4, 1), (4, 1)], help='train_test splits')
+        parser.add_argument('--train_subsample_rate', type=int, default=1)
+        parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
+        parser.add_argument('--time_step', type=int, default=1, help='subsample rate of time')
+        parser.add_argument('--predict_feature', type=str, default='u')
+        return
+    
+    def get_data(self, args):
+        train_loaders, val_loaders = load_autoregressive_traintestsplit_v3(
             data_path=args.data_path, n_data=args.n_data, splits=args.splits, batch_size=args.batch_size, test_batch_size = args.batch_size, 
             train_subsample_rate=args.train_subsample_rate, test_subsample_rate=args.test_subsample_rate, time_step=args.time_step,
             append_positional_encoding=args.pos_encoding,

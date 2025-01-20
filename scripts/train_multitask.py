@@ -43,7 +43,7 @@ def run(raw_args=None):
     verbose = args.verbose
     # # # Seed # # #
     if args.random_seed:
-        seed_everything()
+        args.seed = seed_everything()
     else:
         seed_everything(args.seed)
     
@@ -116,7 +116,7 @@ def run(raw_args=None):
                 dirpath=log_path, 
                 monitor='l2', save_top_k=1
             ),
-            EarlyStopping(monitor='l2', min_delta=1e-6, patience=100),
+            EarlyStopping(monitor='l2', patience=100),
             Timer(),
         ], max_epochs=args.epochs,
         logger=logger,

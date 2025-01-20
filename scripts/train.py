@@ -108,7 +108,7 @@ def run(raw_args=None):
                 dirpath=log_path, 
                 monitor='l2', save_top_k=1
                 ),
-            EarlyStopping(monitor='l2', min_delta=1e-6, patience=100),
+            EarlyStopping(monitor='l2', patience=100),
             Timer(),
         ], 
         max_epochs=args.epochs,
