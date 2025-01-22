@@ -115,6 +115,7 @@ class CustomModelCheckpoint(L.Callback):
                 pl_module.print(f"Removed old model checkpoint: {path_to_remove}")
 
 
+
 class AggregateMetricCallback(L.Callback):
     """
         Aggregates all metrics with a certain prefix into a metric named by the prefix.

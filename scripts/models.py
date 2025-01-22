@@ -37,6 +37,41 @@ class FNOParser(BaseModelParser):
         return model
 
 
+class FNO_OriginalParser(BaseModelParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = 'FNO_Original'
+        
+    def add_parser_args(self, parser):
+        # # # Model Configs # # #
+        parser.add_argument('--n_modes', type=int, default=21) #
+        parser.add_argument('--num_prod', type=int, default=2) #
+        parser.add_argument('--n_layers', type=int, default=4) ##
+        parser.add_argument('--raw_in_channels', type=int, default=1, help='')
+        parser.add_argument('--n_dim', type=int, default=1, help='')
+        parser.add_argument('--pos_encoding', type=int, default=1) ##
+        parser.add_argument('--hidden_channels', type=int, default=32) #
+        parser.add_argument('--lifting_channels', type=int, default=256) #
+        parser.add_argument('--projection_channels', type=int, default=64) #
+        parser.add_argument('--factorization', type=str, default='') #####
+        parser.add_argument('--channel_mixing', type=str, default='', help='') #####
+        parser.add_argument('--mixing_layers', type=int, default=2, help='') #####
+        parser.add_argument('--rank', type=float, default=0.42, help='the compression rate of tensor') #
+
+        return parser
+
+    def get_model(self, args):
+        n_modes=args.n_modes
+        num_prod=args.num_prod
+        in_channels = args.raw_in_channels
+        if args.pos_encoding:
+            in_channels += args.n_dim
+        new_n_modes = [n_modes,] * args.n_dim
+        model = FNO(in_channels=in_channels, n_modes=new_n_modes, hidden_channels=args.hidden_channels, lifting_channels=args.lifting_channels,
+                    projection_channels=args.projection_channels, n_layers=args.n_layers, factorization=args.factorization, channel_mixing=args.channel_mixing, mixing_layers=args.mixing_layers, rank=args.rank, num_prod=num_prod)
+        return model
+
+
 class LSMParser(BaseModelParser):
     def __init__(self) -> None:
         super().__init__()
@@ -129,3 +164,4 @@ class CNOParser(BaseModelParser):
                             channel_multiplier = args.channel_multiplier,
                             use_bn = bool(args.use_bn))
         return model
+

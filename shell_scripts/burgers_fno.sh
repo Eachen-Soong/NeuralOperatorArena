@@ -1,6 +1,7 @@
-CUDA_VISIBLE_DEVICES=0 \
+export CUDA_VISIBLE_DEVICES=2
+
 python scripts/train.py Burgers FNO \
-    --data_path ../../data/zongyi/burgers_data_R10.mat \
+    --data_path  /data/ycsong/data/zongyi/burgers_data_R10.mat \
     --n_train 1536 \
     --n_test 512 \
     --batch_size 64 \
@@ -9,7 +10,7 @@ python scripts/train.py Burgers FNO \
     --test_subsample_rate 1 \
     --n_modes 21 \
     --n_layers 4 \
-    --pos_encoding 1 \
+    --pos_encoding 0 \
     --hidden_channels 32 \
     --lifting_channels 256 \
     --projection_channels 64 \

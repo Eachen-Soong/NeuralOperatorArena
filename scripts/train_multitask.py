@@ -10,7 +10,7 @@ import time
 # import debugpy
 # try:
 #     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
-#     debugpy.listen(("localhost", 9501))
+#     debugpy.listen(("localhost", 9502))
 #     print("Waiting for debugger attach")
 #     debugpy.wait_for_client()
 # except Exception as e:
@@ -33,11 +33,10 @@ from scripts.datasets import MultiTaskTorusVisForceParser
 
 ModelParsers = [FNOParser, LSMParser]
 DataParsers = [MultiTaskTorusVisForceParser]
-loss_dict = {'h1': H1Loss(d=2), 'l2': LpLoss(d=2, p=2)}
 
 
 def run(raw_args=None):
-    fetcher = Fetcher(DataParsers=DataParsers, ModelParsers=ModelParsers, multi_task=True)
+    fetcher = Fetcher(DataParsers=DataParsers, ModelParsers=ModelParsers)
 
     args = fetcher.parse_args(raw_args)
     verbose = args.verbose
@@ -66,11 +65,16 @@ def run(raw_args=None):
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.scheduler_steps, gamma=args.scheduler_gamma)
 
     # 3. Loss Definition
-    l2loss = LpLoss(d=2, p=2)
-    h1loss = H1Loss(d=2)
+    loss_dict = {'h1': H1Loss(d=2, reductions=args.loss_reduction), 'l2': LpLoss(d=2, p=2, reductions=args.loss_reduction) , 'l1': LpLoss(d=1, p=2, reductions=args.loss_reduction)}
+
     try: train_loss = loss_dict[args.train_loss]
-    except: print("Unsupported training loss!")
-    eval_losses={'h1': h1loss, 'l2': l2loss}
+    except: print(f"Unsupported training loss! {args.train_loss}")
+    try:
+        eval_loss_names = args.eval_loss
+        if type(eval_loss_names) == type(''):
+            eval_loss_names = [eval_loss_names]
+        eval_losses = {key: loss_dict[key] for key in eval_loss_names}
+    except: print(f"Unsupported eval loss! {args.eval_loss}")
 
     if verbose:
         print('\n### MODEL ###\n', model)
@@ -78,10 +82,9 @@ def run(raw_args=None):
         print('\n### SCHEDULER ###\n', scheduler)
         print('\n### LOSSES ###')
         print(f'\n * Train: {train_loss}')
-        print(f'\n * Test: {eval_losses}')
+        print(f'\n * Evaluation: {eval_losses}')
         sys.stdout.flush()
 
-    # print(args.splits)
     n_tasks = len(args.splits)
     module = MultiTaskModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict, n_tasks=n_tasks)
 
@@ -108,10 +111,6 @@ def run(raw_args=None):
     trainer = L.Trainer(
         callbacks=[
             AggregateMetricCallback(prefixes_to_sum=loss_dict.keys()),
-            # ModelCheckpoint(
-            #     dirpath=log_path, 
-            #     monitor='l2', save_top_k=1
-            #     ),
             CustomModelCheckpoint(
                 dirpath=log_path, 
                 monitor='l2', save_top_k=1
@@ -120,7 +119,6 @@ def run(raw_args=None):
             Timer(),
         ], max_epochs=args.epochs,
         logger=logger,
-        default_root_dir=log_path
         )
     trainer.fit(model=module, train_dataloaders=train_loader, val_dataloaders=val_loader)
 

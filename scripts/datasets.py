@@ -65,7 +65,7 @@ class TorusLiParser(BaseDataParser):
         parser.add_argument('--n_train', type=int, default=-1)
         parser.add_argument('--n_test', type=int, default=-1)
         parser.add_argument('--train_subsample_rate', type=int, default=1)
-        parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
+        parser.add_argument('--test_subsample_rate', type=int, default=1)
         parser.add_argument('--time_step', type=int, default=1, help='subsample rate of time')
         parser.add_argument('--predict_feature', type=str, default='u')
         return
@@ -73,8 +73,7 @@ class TorusLiParser(BaseDataParser):
     def get_data(self, args):
         train_loader, val_loader = load_autoregressive_traintestsplit(
             data_path=args.data_path, n_train=args.n_train, n_test=args.n_test, batch_size=args.batch_size, test_batch_size = args.batch_size, 
-            train_ssr=args.train_subsample_rate, test_ssrs=args.test_subsample_rate, time_step=args.time_step,
-            positional_encoding=args.pos_encoding,
+            train_subsample_rate=args.train_subsample_rate, test_subsample_rate=args.test_subsample_rate, time_step=args.time_step,
             predict_feature=args.predict_feature,
         )
         return train_loader, val_loader

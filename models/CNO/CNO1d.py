@@ -302,7 +302,7 @@ class CNO1d(nn.Module):
 
         self.res_nets = torch.nn.Sequential(*self.res_nets)
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
 
         x = self.lift(x) #Execute Lift
         skip = []

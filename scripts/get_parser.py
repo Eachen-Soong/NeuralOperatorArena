@@ -28,7 +28,7 @@ class BaseDataParser():
         raise NotImplementedError
 
 
-def add_base_args(parser:argparse.ArgumentParser, multi_task = False):
+def add_base_args(parser:argparse.ArgumentParser):
     # # # Data Loader Configs # # #
     parser.add_argument('--batch_size', type=int, default=32) #
     # # # Model Configs # # #
@@ -38,7 +38,10 @@ def add_base_args(parser:argparse.ArgumentParser, multi_task = False):
     parser.add_argument('--weight_decay', type=float, default=1e-4) #
     parser.add_argument('--scheduler_steps', type=int, default=100) #
     parser.add_argument('--scheduler_gamma', type=float, default=0.5) #
-    parser.add_argument('--train_loss', type=str, default='h1', help='h1 or l2') #
+    parser.add_argument('--train_loss', type=str, default='h1', help='h1 or l2 or l1') #
+    parser.add_argument('--eval_loss', type=str, nargs='+', default=['h1', 'l2'], help='h1 or l2 or l1') #
+    parser.add_argument('--loss_reduction', type=str, default='sum', help='sum or mean') #
+
     # # # Log and Save Configs # # #
     parser.add_argument('--save_dir', type=str, default='./runs')
     parser.add_argument('--version_of_time', type=int, default=1, help='whether to use program start time as suffix')
@@ -81,7 +84,7 @@ class Fetcher():
                 model_name = model_parser_instance.name
                 subsubparser = model_subparsers.add_parser(model_name, help=f'Train {model_name} on {data_name}')
 
-                add_base_args(subsubparser, multi_task=self.multi_task)
+                add_base_args(subsubparser)
                 data_parser_instance.add_parser_args(subsubparser)
                 model_parser_instance.add_parser_args(subsubparser)
                 self.model_fetcher[model_name] = model_parser_class

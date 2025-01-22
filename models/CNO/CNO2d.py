@@ -263,7 +263,7 @@ class CNO2d(nn.Module):
 
         # After the ResNets are executed, the sizes of encoder and decoder might not match (if out_size>1)
         # We must ensure that the sizes are the same, by aplying CNO Blocks
-        self.ED_expansion     = nn.ModuleList([(CNOBlock(in_channels = self.encoder_features[i],
+        self.ED_expansion    = nn.ModuleList([(CNOBlock(in_channels = self.encoder_features[i],
                                                         out_channels = self.encoder_features[i],
                                                         in_size      = self.encoder_sizes[i],
                                                         out_size     = self.decoder_sizes[self.N_layers - i],
@@ -302,11 +302,11 @@ class CNO2d(nn.Module):
 
         self.res_nets = torch.nn.Sequential(*self.res_nets)
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
                 
         x = self.lift(x) #Execute Lift
         skip = []
-       
+        
         # Execute Encoder
         for i in range(self.N_layers):
 
