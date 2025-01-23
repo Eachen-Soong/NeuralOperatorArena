@@ -1,7 +1,7 @@
-export CUDA_VISIBLE_DEVICES=5
+export CUDA_VISIBLE_DEVICES=2
 
 python scripts/train.py Burgers FNO \
-    --data_path  /data/ycsong/data/zongyi/burgers_data_R10.mat \
+    --data_path /data/ycsong/data/zongyi/burgers_data_R10.mat \
     --n_train 1536 \
     --n_test 512 \
     --batch_size 64 \
