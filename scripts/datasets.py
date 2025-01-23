@@ -1,5 +1,5 @@
 from .get_parser import BaseDataParser
-from data.datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit, load_autoregressive_traintestsplit_v3, load_autoregressive_multitask_mu_preordered
+from data.datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit, load_autoregressive_traintestsplit_v3, load_autoregressive_multitask_mu_preordered, load_autoregressive_traintestsplit_v1
 from data.datasets.dataloader import ns_contextual_loader
 import torch
 import numpy as np
@@ -71,7 +71,7 @@ class TorusLiParser(BaseDataParser):
         return
     
     def get_data(self, args):
-        train_loader, val_loader = load_autoregressive_traintestsplit(
+        train_loader, val_loader = load_autoregressive_traintestsplit_v1(
             data_path=args.data_path, n_train=args.n_train, n_test=args.n_test, batch_size=args.batch_size, test_batch_size = args.batch_size, 
             train_subsample_rate=args.train_subsample_rate, test_subsample_rate=args.test_subsample_rate, time_step=args.time_step,
             predict_feature=args.predict_feature,

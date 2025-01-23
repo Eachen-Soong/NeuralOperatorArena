@@ -21,7 +21,7 @@ python scripts/train.py Burgers FNO \
     --scheduler_gamma 0.5 \
     --train_loss h1 \
     --save_dir ./runs \
-    --epochs 501 \
+    --epochs 1 \
     --verbose 1 \
     --version_of_time 1 \
     --random_seed 0 \

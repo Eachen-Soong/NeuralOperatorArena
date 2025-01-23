@@ -1,5 +1,5 @@
 from .get_parser import BaseModelParser
-from models import FNO, LSM_2D, CNO1d, CNO2d, FNO_2D_Original, ProdFNO_2D_Original
+from models import FNO, LSM_2D, CNO1d, CNO2d, FNO_2D_Original, ProdFNO_2D_Original, FNO_1D_Original, ProdFNO_1D_Original
 
 
 class FNOParser(BaseModelParser):
@@ -65,12 +65,21 @@ class FNO_OriginalParser(BaseModelParser):
 
         if args.n_dim == 2:
             if num_prod:
-                model = ProdFNO_2D_Original(in_dim=in_channels, appended_dim=2, out_dim=args.out_channels,
+                model = ProdFNO_2D_Original(in_dim=in_channels, out_dim=args.out_channels,
                     modes1=n_modes, modes2=n_modes, width=width, num_prod=num_prod, use_position=args.model_pos_encoding)
                 
             else:
                 model = FNO_2D_Original(in_dim=in_channels, out_dim=args.out_channels,
                     modes1=n_modes, modes2=n_modes, width=width, use_position=args.model_pos_encoding)
+        elif args.n_dim == 1:
+            if num_prod:
+                model = ProdFNO_1D_Original(in_dim=in_channels, out_dim=args.out_channels,
+                    modes=n_modes, width=width, num_prod=num_prod, use_position=args.model_pos_encoding, )
+                
+            else:
+                model = FNO_1D_Original(in_dim=in_channels, out_dim=args.out_channels,
+                    modes=n_modes, width=width, use_position=args.model_pos_encoding)
+
         else:
             assert False, f"Unsupported Input Shape: {args.n_dim}"
 

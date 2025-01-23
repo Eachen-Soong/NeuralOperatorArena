@@ -16,7 +16,7 @@ python -m scripts.train TorusVisForce CNO \
     --n_res 4 \
     --n_res_neck 16 \
     --channel_multiplier 16 \
-    --use_bn 0 \
+    --use_bn 1 \
     --pos_encoding 0 \
     --lr 1e-3 \
     --weight_decay 1e-4 \

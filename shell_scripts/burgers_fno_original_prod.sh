@@ -10,7 +10,7 @@ python scripts/train.py Burgers FNO_Original \
     --test_subsample_rate 1 \
     --n_dim 1 \
     --n_modes 21 \
-    --num_prod 0 \
+    --num_prod 2 \
     --pos_encoding 0 \
     --model_pos_encoding 1 \
     --hidden_channels 64 \
