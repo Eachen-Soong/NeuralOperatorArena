@@ -10,19 +10,22 @@ class MultiMetricModule(L.LightningModule):
         2. The 
     TODO: add single metric
     """
-    def __init__(self, model, optimizer, scheduler, train_loss, metric_dict:dict) -> None:
+    def __init__(self, model, optimizer, scheduler, train_loss, metric_dict:dict, average_over_batch=True) -> None:
         super().__init__()
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.train_loss = train_loss
         self.metric_dict = metric_dict
+        self.average_over_batch = average_over_batch
 
     def configure_optimizers(self):
         return {'optimizer':self.optimizer, 'lr_scheduler': self.scheduler}
 
     def training_step(self, batch, batch_idx, *args, **kwargs):
         loss = self.train_loss(self.model(**batch), batch['y'])
+        if self.average_over_batch:
+            loss /=  batch['y'].shape[0]
         self.log('train_err', loss)
         return loss
     
@@ -30,23 +33,26 @@ class MultiMetricModule(L.LightningModule):
         pred = self.model(**batch)
         loss_dict = dict()
         for key in self.metric_dict.keys():
-            loss_dict[key] = self.metric_dict[key](pred, batch['y'])
+            loss = self.metric_dict[key](pred, batch['y'])
+            if self.average_over_batch:
+                loss /=  batch['y'].shape[0]
+            loss_dict[key] = loss
         self.log_dict(loss_dict)
     
     def test_step(self, batch, batch_idx, *args, **kwargs):
         pred = self.model(**batch)
         loss_dict = dict()
         for key in self.metric_dict.keys():
-            loss_dict[key] = self.metric_dict[key](pred, batch['y'])
+            loss = self.metric_dict[key](pred, batch['y'])
+            if self.average_over_batch:
+                loss /=  batch['y'].shape[0]
+            loss_dict[key] = loss
         self.log_dict(loss_dict)
 
     def predict_step(self, batch, *args: Any, **kwargs: Any) -> Any:
         pred = self.model(**batch)
         self.log('predict_value', pred)
         return pred
-    
-    def on_validation_end(self) -> None:
-        return super().on_validation_end()
     
 
 class MultiTaskModule(L.LightningModule):
@@ -58,7 +64,7 @@ class MultiTaskModule(L.LightningModule):
     Must be cocupled with the MultiTask DataModule!
     TODO: add single metric
     """
-    def __init__(self, model, optimizer, scheduler, train_loss, metric_dict:dict, n_tasks, n_val_tasks=-1, train_data_names:list=None, val_data_names:list=None, log_on_epoch=True) -> None:
+    def __init__(self, model, optimizer, scheduler, train_loss, metric_dict:dict, n_tasks, n_val_tasks=-1, train_data_names:list=None, val_data_names:list=None, log_on_epoch=True, average_over_batch=True) -> None:
         super().__init__()
         self.automatic_optimization = False
         self.model = model
@@ -70,7 +76,8 @@ class MultiTaskModule(L.LightningModule):
         self.metric_dict = metric_dict
         self.scheduler = scheduler
         self.log_on_epoch = log_on_epoch
-        
+        self.average_over_batch = average_over_batch
+
         if n_val_tasks == -1:
             n_val_tasks = n_tasks
         
@@ -103,7 +110,10 @@ class MultiTaskModule(L.LightningModule):
             self.log(self.train_data_names[i], loss, on_epoch=True, on_step=False)
             loss.backward()
             self.optimizer.step()
-            train_err_batch += loss.detach()
+            train_loss = loss.detach()
+            if self.average_over_batch:
+                train_loss /=  batch['y'].shape[0]
+            train_err_batch += train_loss
         self.log('train_err_batch', train_err_batch, on_epoch=False, on_step=True)
         self.log('train_err', train_err_batch, on_epoch=True, on_step=False)
         return loss
@@ -115,7 +125,10 @@ class MultiTaskModule(L.LightningModule):
         loss_dict = dict()
         # data_name = self.val_data_names[dataloader_idx]
         for key in self.metric_dict.keys():
-            loss_dict[key] = self.metric_dict[key](pred, batch['y'])
+            loss = self.metric_dict[key](pred, batch['y'])
+            if self.average_over_batch:
+                loss /=  batch['y'].shape[0]
+            loss_dict[key] = loss
             # loss_dict[key+"/"+data_name] = self.metric_dict[key](pred, batch['y'])
         self.log_dict(loss_dict)
     
@@ -123,7 +136,10 @@ class MultiTaskModule(L.LightningModule):
         pred = self.model(**batch)
         loss_dict = dict()
         for key in self.metric_dict.keys():
-            loss_dict[key] = self.metric_dict[key](pred, batch['y'])
+            loss = self.metric_dict[key](pred, batch['y'])
+            if self.average_over_batch:
+                loss /=  batch['y'].shape[0]
+            loss_dict[key] = loss
         self.log_dict(loss_dict)
 
     def predict_step(self, batch, *args: Any, **kwargs: Any) -> Any:

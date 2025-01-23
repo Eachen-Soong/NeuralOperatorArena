@@ -1,9 +1,7 @@
-export CUDA_VISIBLE_DEVICES=4
+export CUDA_VISIBLE_DEVICES=2
 
-python -m scripts.train TorusVisForce FNO \
+python -m scripts.train_multitask MultiTaskTorusVisForce FNO \
     --data_path /data/ycsong/data/ns_contextual/ns_random_forces_v0.h5 \
-    --n_train 100 \
-    --n_test 20 \
     --raw_in_channels 3 \
     --n_dim 2 \
     --batch_size 32 \

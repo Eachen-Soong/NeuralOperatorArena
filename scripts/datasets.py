@@ -160,7 +160,7 @@ class TorusVisForceParser(BaseDataParser):
 class MultiTaskTorusVisForceParser(BaseDataParser):
     def __init__(self) -> None:
         super().__init__()
-        self.name = 'MultiTaskTorusvisForce'
+        self.name = 'MultiTaskTorusVisForce'
 
     def add_parser_args(self, parser):
         super().add_parser_args(parser)

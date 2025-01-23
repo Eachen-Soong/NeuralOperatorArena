@@ -1,5 +1,5 @@
 from .get_parser import BaseModelParser
-from models import FNO, LSM_2D, CNO1d, CNO2d
+from models import FNO, LSM_2D, CNO1d, CNO2d, FNO_2D_Original, ProdFNO_2D_Original
 
 
 class FNOParser(BaseModelParser):
@@ -46,17 +46,13 @@ class FNO_OriginalParser(BaseModelParser):
         # # # Model Configs # # #
         parser.add_argument('--n_modes', type=int, default=21) #
         parser.add_argument('--num_prod', type=int, default=2) #
-        parser.add_argument('--n_layers', type=int, default=4) ##
+        # parser.add_argument('--n_layers', type=int, default=4) ##
         parser.add_argument('--raw_in_channels', type=int, default=1, help='')
-        parser.add_argument('--n_dim', type=int, default=1, help='')
-        parser.add_argument('--pos_encoding', type=int, default=1) ##
+        parser.add_argument('--out_channels', type=int, default=1, help='')
+        parser.add_argument('--n_dim', type=int, default=2, help='')
+        parser.add_argument('--pos_encoding', type=int, default=0) ##
+        parser.add_argument('--model_pos_encoding', type=int, default=1) ##
         parser.add_argument('--hidden_channels', type=int, default=32) #
-        parser.add_argument('--lifting_channels', type=int, default=256) #
-        parser.add_argument('--projection_channels', type=int, default=64) #
-        parser.add_argument('--factorization', type=str, default='') #####
-        parser.add_argument('--channel_mixing', type=str, default='', help='') #####
-        parser.add_argument('--mixing_layers', type=int, default=2, help='') #####
-        parser.add_argument('--rank', type=float, default=0.42, help='the compression rate of tensor') #
 
         return parser
 
@@ -64,11 +60,20 @@ class FNO_OriginalParser(BaseModelParser):
         n_modes=args.n_modes
         num_prod=args.num_prod
         in_channels = args.raw_in_channels
-        if args.pos_encoding:
-            in_channels += args.n_dim
-        new_n_modes = [n_modes,] * args.n_dim
-        model = FNO(in_channels=in_channels, n_modes=new_n_modes, hidden_channels=args.hidden_channels, lifting_channels=args.lifting_channels,
-                    projection_channels=args.projection_channels, n_layers=args.n_layers, factorization=args.factorization, channel_mixing=args.channel_mixing, mixing_layers=args.mixing_layers, rank=args.rank, num_prod=num_prod)
+
+        width = args.hidden_channels
+
+        if args.n_dim == 2:
+            if num_prod:
+                model = ProdFNO_2D_Original(in_dim=in_channels, appended_dim=2, out_dim=args.out_channels,
+                    modes1=n_modes, modes2=n_modes, width=width, num_prod=num_prod, use_position=args.model_pos_encoding)
+                
+            else:
+                model = FNO_2D_Original(in_dim=in_channels, out_dim=args.out_channels,
+                    modes1=n_modes, modes2=n_modes, width=width, use_position=args.model_pos_encoding)
+        else:
+            assert False, f"Unsupported Input Shape: {args.n_dim}"
+
         return model
 
 

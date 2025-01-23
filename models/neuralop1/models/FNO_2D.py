@@ -6,13 +6,14 @@ import torch.nn.functional as F
 import torch.nn as nn
 import torch
 import numpy as np
-from .modules import SpectralConv2d, MLP, SpectralConvProd2d
+from .modules import SpectralConv2d, SpectralConvProd2d
+from ..layers.mlp import MLP
 
 ################################################################
 # fourier layer
 ################################################################
 class FNO_2D(nn.Module):
-    def __init__(self, in_dim, appended_dim, out_dim, modes1, modes2, width, use_position=True):
+    def __init__(self, in_dim, out_dim, modes1, modes2, width, use_position=True):
         super(FNO_2D, self).__init__()
 
         """
@@ -28,15 +29,16 @@ class FNO_2D(nn.Module):
         output shape: (batchsize, x=s, y=s, c=1)
         """
         self.in_dim = in_dim
-        self.appended_dim = appended_dim
         self.out_dim = out_dim
         self.modes1 = modes1
         self.modes2 = modes2
         self.width = width
-        self.padding = 9 # pad the domain if input is non-periodic
+        # self.padding = 9 # pad the domain if input is non-periodic
         self.use_position = use_position
+        appended_dim = 2 if use_position else 0
 
-        self.p = nn.Linear(in_dim + appended_dim, self.width) # input channel is 3: (a(x, y), x, y)
+        # self.p = nn.Linear(in_dim + appended_dim, self.width) # input channel is 3: (a(x, y), x, y)
+        self.p = nn.Conv2d(in_channels=in_dim + appended_dim, out_channels=self.width, kernel_size=1)
         self.conv0 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
         self.conv1 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
         self.conv2 = SpectralConv2d(self.width, self.width, self.modes1, self.modes2)
@@ -51,14 +53,15 @@ class FNO_2D(nn.Module):
         self.w3 = nn.Conv2d(self.width, self.width, 1)
         self.q = MLP(self.width, out_dim, self.width * 4) # output channel is 1: u(x, y)
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         if self.use_position:
             grid = self.get_grid(x.shape, x.device)
-            x = torch.cat((x, grid), dim=-1)
+            # x = torch.cat((x, grid), dim=-1)
+            x = torch.cat((x, grid), dim=1)
 
         x = self.p(x)
-        x = x.permute(0, 3, 1, 2)
-        x = F.pad(x, [0,self.padding, 0,self.padding])
+        # x = x.permute(0, 3, 1, 2)
+        # x = F.pad(x, [0,self.padding, 0,self.padding])
 
         x1 = self.conv0(x)
         x1 = self.mlp0(x1)
@@ -83,18 +86,18 @@ class FNO_2D(nn.Module):
         x2 = self.w3(x)
         x = x1 + x2
 
-        x = x[..., :-self.padding, :-self.padding]
+        # x = x[..., :-self.padding, :-self.padding]
         x = self.q(x)
-        x = x.permute(0, 2, 3, 1)
+        # x = x.permute(0, 2, 3, 1)
         return x
     
     def get_grid(self, shape, device):
-        batchsize, size_x, size_y = shape[0], shape[1], shape[2]
+        batchsize, size_x, size_y = shape[0], shape[-2], shape[-1]
         gridx = torch.tensor(np.linspace(0, 1, size_x), dtype=torch.float)
-        gridx = gridx.reshape(1, size_x, 1, 1).repeat([batchsize, 1, size_y, 1])
+        gridx = gridx.reshape(1, 1, size_x, 1).repeat([batchsize, 1, 1, size_y])
         gridy = torch.tensor(np.linspace(0, 1, size_y), dtype=torch.float)
-        gridy = gridy.reshape(1, 1, size_y, 1).repeat([batchsize, size_x, 1, 1])
-        return torch.cat((gridx, gridy), dim=-1).to(device)
+        gridy = gridy.reshape(1, 1, 1, size_y).repeat([batchsize, 1, size_x, 1])
+        return torch.cat((gridx, gridy), dim=1).to(device)
 
     
 class FNO_2D_test(nn.Module):
@@ -119,7 +122,7 @@ class FNO_2D_test(nn.Module):
         self.modes1 = modes1
         self.modes2 = modes2
         self.width = width
-        self.padding = 9 # pad the domain if input is non-periodic
+        # self.padding = 9 # pad the domain if input is non-periodic
         self.use_position = use_position
         self.skip_connection = skip_connection
 
@@ -538,15 +541,19 @@ class ProdFNO_2D_test(nn.Module):
         self.q0 = QuadPath(self.in_dim + self.appended_dim, self.num_prod, self.num_prod, self.num_prod)
         assert self.width - self.in_dim - self.appended_dim - self.num_prod > 0, "width <= in_dim + appended_dim + num_prod !"
         self.fc0 = nn.Linear(self.in_dim + self.appended_dim + self.num_prod, self.width - self.in_dim - self.appended_dim - self.num_prod)
-        self.fc1 = nn.Linear(self.width, self.out_dim)
+        # self.fc1 = nn.Linear(self.width, self.out_dim)
+        self.fc1 = nn.Conv2d(in_channels=self.width, out_channels=self.out_dim, kernel_size=1)
+
 
         self.quads = [self.q0]
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         if self.use_position:
             grid = self.get_grid(x.shape, x.device)
-            x = torch.cat((x, grid), dim=-1)
+            # x = torch.cat((x, grid), dim=-1)
+            x = torch.cat((x, grid), dim=1)
 
+        x = x.permute(0, 2, 3, 1)
         q = self.q0(x)
         x = torch.cat((x, q), dim=-1) # cat product terms
         x = torch.cat((x, self.fc0(x)), dim=-1)
@@ -588,19 +595,19 @@ class ProdFNO_2D_test(nn.Module):
         else: x = xo
         # x = F.gelu(x)
 
-        x = x.permute(0, 2, 3, 1)
+        # x = x.permute(0, 2, 3, 1)
         x = self.fc1(x)
         # x = F.gelu(x)
         # x = self.fc2(x)
         return x
     
     def get_grid(self, shape, device):
-        batchsize, size_x, size_y = shape[0], shape[1], shape[2]
+        batchsize, size_x, size_y = shape[0], shape[-2], shape[-1]
         gridx = torch.tensor(np.linspace(0, 1, size_x), dtype=torch.float)
-        gridx = gridx.reshape(1, size_x, 1, 1).repeat([batchsize, 1, size_y, 1])
+        gridx = gridx.reshape(1, 1, size_x, 1).repeat([batchsize, 1, 1, size_y])
         gridy = torch.tensor(np.linspace(0, 1, size_y), dtype=torch.float)
-        gridy = gridy.reshape(1, 1, size_y, 1).repeat([batchsize, size_x, 1, 1])
-        return torch.cat((gridx, gridy), dim=-1).to(device)
+        gridy = gridy.reshape(1, 1, 1, size_y).repeat([batchsize, 1, size_x, 1])
+        return torch.cat((gridx, gridy), dim=1).to(device)
 
     def extract(self, threshold, epoch):
         for (idx, quad) in enumerate(self.quads):

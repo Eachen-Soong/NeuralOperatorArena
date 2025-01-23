@@ -38,7 +38,7 @@ class SpectralConv2d(nn.Module):
 
         #Return to physical space
         x = torch.fft.irfft2(out_ft, s=(x.size(-2), x.size(-1)))
-        return 
+        return x
 
 class SpectralConvProd2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2, num_prod, fourier_weight=None, gain=1.):

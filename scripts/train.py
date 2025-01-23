@@ -10,7 +10,7 @@ import time
 # import debugpy
 # try:
 #     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
-#     debugpy.listen(("localhost", 9502))
+#     debugpy.listen(("localhost", 9501))
 #     print("Waiting for debugger attach")
 #     debugpy.wait_for_client()
 # except Exception as e:
@@ -27,10 +27,10 @@ from lightning_modules import MultiMetricModule
 from utils.losses import LpLoss, H1Loss
 
 from scripts.get_parser import Fetcher
-from scripts.models import FNOParser, LSMParser, CNOParser
+from scripts.models import FNOParser, LSMParser, CNOParser, FNO_OriginalParser
 from scripts.datasets import BurgersParser, DarcyParser, TorusLiParser, TorusVisForceParser
 
-ModelParsers = [FNOParser, LSMParser, CNOParser]
+ModelParsers = [FNOParser, LSMParser, CNOParser, FNO_OriginalParser]
 DataParsers = [BurgersParser, DarcyParser, TorusLiParser, TorusVisForceParser]
 
 def run(raw_args=None):
@@ -83,7 +83,8 @@ def run(raw_args=None):
         print(f'\n * Evaluation: {eval_losses}')
         sys.stdout.flush()
 
-    module = MultiMetricModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict)
+    use_sum_reduction = (args.loss_reduction == 'sum')
+    module = MultiMetricModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict, average_over_batch=use_sum_reduction)
 
     # # # Logs # # #
     save_dir = args.save_dir + '/' + args.data + '/' + args.model + '/'

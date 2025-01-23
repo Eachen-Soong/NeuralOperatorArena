@@ -27,11 +27,11 @@ from lightning_modules import MultiTaskModule, AggregateMetricCallback, CustomMo
 from utils.losses import LpLoss, H1Loss
 
 from scripts.get_parser import Fetcher
-from scripts.models import FNOParser, LSMParser
+from scripts.models import FNOParser, LSMParser, FNO_OriginalParser
 from scripts.datasets import MultiTaskTorusVisForceParser
 
 
-ModelParsers = [FNOParser, LSMParser]
+ModelParsers = [FNOParser, LSMParser, FNO_OriginalParser]
 DataParsers = [MultiTaskTorusVisForceParser]
 
 
@@ -86,7 +86,8 @@ def run(raw_args=None):
         sys.stdout.flush()
 
     n_tasks = len(args.splits)
-    module = MultiTaskModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict, n_tasks=n_tasks)
+    use_sum_reduction = (args.loss_reduction == 'sum')
+    module = MultiTaskModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict, n_tasks=n_tasks, average_over_batch=use_sum_reduction)
 
     # # # Logs # # #
     save_dir = args.save_dir + '/' + args.data + '/' + args.model + '/'
