@@ -7,6 +7,7 @@ import types
 import copy
 from typing import Union
 
+
 class BurgersParser(BaseDataParser):
     def __init__(self) -> None:
         super().__init__()
@@ -220,6 +221,8 @@ class MultiTaskCylinderFlowParser(BaseDataParser):
         super().add_parser_args(parser)
         parser.add_argument('--train_path', type=str, nargs='+', default='./', help="the path of training data file")
         parser.add_argument('--test_path',  type=str, nargs='+', default='./', help="the path of test data file")
+        parser.add_argument('--n_train', type=int, nargs='+', default=64)
+        parser.add_argument('--n_test', type=int, nargs='+', default=16)
         parser.add_argument('--train_subsample_rate', type=int, default=1)
         parser.add_argument('--test_subsample_rate',  type=int, default=1)
         parser.add_argument('--time_step',  type=int, default=1, help='subsample rate of time')
