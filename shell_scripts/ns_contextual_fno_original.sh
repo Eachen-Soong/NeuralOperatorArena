@@ -21,5 +21,5 @@ python -m scripts.train TorusVisForce FNO_Original \
     --train_loss h1 \
     --epochs 501 \
     --verbose 1 \
-    --random_seed 0 \
+    --random_seed 1 \
     --seed 0
