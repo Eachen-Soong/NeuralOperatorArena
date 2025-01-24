@@ -105,14 +105,15 @@ class MultiTaskModule(L.LightningModule):
         train_err_batch = 0
         for i in range(self.n_tasks):
             self.optimizer.zero_grad()
-            loss = self.train_loss[i](self.model(**batch[i]), batch[i]['y'])
+            pred = self.model(**batch[i])
+            loss = self.train_loss[i](pred, batch[i]['y']).mean()
             self.log(self.train_data_names[i] + '_batch', loss, on_epoch=False, on_step=True)
             self.log(self.train_data_names[i], loss, on_epoch=True, on_step=False)
             loss.backward()
             self.optimizer.step()
             train_loss = loss.detach()
             if self.average_over_batch:
-                train_loss /=  batch['y'].shape[0]
+                train_loss /=  batch[i]['y'].shape[0]
             train_err_batch += train_loss
         self.log('train_err_batch', train_err_batch, on_epoch=False, on_step=True)
         self.log('train_err', train_err_batch, on_epoch=True, on_step=False)
@@ -125,10 +126,10 @@ class MultiTaskModule(L.LightningModule):
         loss_dict = dict()
         # data_name = self.val_data_names[dataloader_idx]
         for key in self.metric_dict.keys():
-            loss = self.metric_dict[key](pred, batch['y'])
+            loss = self.metric_dict[key](pred, batch['y']).mean()
             if self.average_over_batch:
                 loss /=  batch['y'].shape[0]
-            loss_dict[key] = loss
+            loss_dict[key] = loss.mean()
             # loss_dict[key+"/"+data_name] = self.metric_dict[key](pred, batch['y'])
         self.log_dict(loss_dict)
     

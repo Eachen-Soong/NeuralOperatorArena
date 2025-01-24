@@ -13,6 +13,7 @@ class FNOParser(BaseModelParser):
         parser.add_argument('--num_prod', type=int, default=2) #
         parser.add_argument('--n_layers', type=int, default=4) ##
         parser.add_argument('--raw_in_channels', type=int, default=1, help='')
+        parser.add_argument('--out_channels', type=int, default=1, help='')
         parser.add_argument('--n_dim', type=int, default=1, help='')
         parser.add_argument('--pos_encoding', type=int, default=1) ##
         parser.add_argument('--hidden_channels', type=int, default=32) #
@@ -32,7 +33,7 @@ class FNOParser(BaseModelParser):
         if args.pos_encoding:
             in_channels += args.n_dim
         new_n_modes = [n_modes,] * args.n_dim
-        model = FNO(in_channels=in_channels, n_modes=new_n_modes, hidden_channels=args.hidden_channels, lifting_channels=args.lifting_channels,
+        model = FNO(in_channels=in_channels, out_channels=args.out_channels, n_modes=new_n_modes, hidden_channels=args.hidden_channels, lifting_channels=args.lifting_channels,
                     projection_channels=args.projection_channels, n_layers=args.n_layers, factorization=args.factorization, channel_mixing=args.channel_mixing, mixing_layers=args.mixing_layers, rank=args.rank, num_prod=num_prod)
         return model
 

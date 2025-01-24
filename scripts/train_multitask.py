@@ -7,14 +7,14 @@ sys.path.insert(0, parentdir)
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 import time
 
-# import debugpy
-# try:
-#     # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
-#     debugpy.listen(("localhost", 9502))
-#     print("Waiting for debugger attach")
-#     debugpy.wait_for_client()
-# except Exception as e:
-#     pass
+import debugpy
+try:
+    # 5678 is the default attach port in the VS Code debug configurations. Unless a host and port are specified, host defaults to 127.0.0.1
+    debugpy.listen(("localhost", 9504))
+    print("Waiting for debugger attach")
+    debugpy.wait_for_client()
+except Exception as e:
+    pass
 
 import torch
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, Timer
@@ -28,11 +28,11 @@ from utils.losses import LpLoss, H1Loss
 
 from scripts.get_parser import Fetcher
 from scripts.models import FNOParser, LSMParser, FNO_OriginalParser
-from scripts.datasets import MultiTaskTorusVisForceParser
+from scripts.datasets import MultiTaskTorusVisForceParser, MultiTaskCylinderFlowParser
 
 
 ModelParsers = [FNOParser, LSMParser, FNO_OriginalParser]
-DataParsers = [MultiTaskTorusVisForceParser]
+DataParsers = [MultiTaskTorusVisForceParser, MultiTaskCylinderFlowParser]
 
 
 def run(raw_args=None):
@@ -48,7 +48,7 @@ def run(raw_args=None):
     
     # # # Data Preparation # # #
     train_loader, val_loader = fetcher.get_data(args)
-
+    assert type(train_loader) == type([]) and type(val_loader) == type([]), 'The type of train_loader and val_loader should be a list!!!'
 
     # # # Create Lightning Module # # #
     # 1. Model Definition
@@ -85,9 +85,10 @@ def run(raw_args=None):
         print(f'\n * Evaluation: {eval_losses}')
         sys.stdout.flush()
 
-    n_tasks = len(args.splits)
+    n_tasks = len(train_loader)
+    n_val_tasks = len(val_loader)
     use_sum_reduction = (args.loss_reduction == 'sum')
-    module = MultiTaskModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict, n_tasks=n_tasks, average_over_batch=use_sum_reduction)
+    module = MultiTaskModule(model=model, optimizer=optimizer, scheduler=scheduler, train_loss=train_loss, metric_dict=loss_dict, n_tasks=n_tasks, n_val_tasks=n_val_tasks, average_over_batch=use_sum_reduction)
 
     # # # Logs # # #
     save_dir = args.save_dir + '/' + args.data + '/' + args.model + '/'

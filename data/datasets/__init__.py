@@ -2,3 +2,4 @@ from .autoregressive_dataset import AutoregressiveDataset, load_autoregressive_t
 from .burgers import load_burgers_mat
 from .darcy import load_darcy_mat
 from .navier_stokes import load_navier_stokes_hdf5, load_navier_stokes_pt
+from .Cylinder2dDataset import load_cylinder2d_traintestsplit, load_cylinder2d
