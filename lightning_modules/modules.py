@@ -51,8 +51,7 @@ class MultiMetricModule(L.LightningModule):
 
     def predict_step(self, batch, *args: Any, **kwargs: Any) -> Any:
         pred = self.model(**batch)
-        self.log('predict_value', pred)
-        return pred
+        return pred, batch['y']
     
 
 class MultiTaskModule(L.LightningModule):
@@ -64,7 +63,7 @@ class MultiTaskModule(L.LightningModule):
     Must be cocupled with the MultiTask DataModule!
     TODO: add single metric
     """
-    def __init__(self, model, optimizer, scheduler, train_loss, metric_dict:dict, n_tasks, n_val_tasks=-1, train_data_names:list=None, val_data_names:list=None, log_on_epoch=True, average_over_batch=True) -> None:
+    def __init__(self, model, optimizer, scheduler, train_loss, metric_dict:dict, n_tasks, n_val_tasks=-1, train_data_names:list=None, val_data_names:list=None, log_on_epoch=True, average_over_batch=True, prediction_output_x=False) -> None:
         super().__init__()
         self.automatic_optimization = False
         self.model = model
@@ -94,6 +93,7 @@ class MultiTaskModule(L.LightningModule):
         
         self.train_loss = train_loss
         self.metric_dict = metric_dict
+        self.prediction_output_x = prediction_output_x
 
     def configure_optimizers(self):
         return {'optimizer':self.optimizer, 'lr_scheduler': self.scheduler}
@@ -145,6 +145,8 @@ class MultiTaskModule(L.LightningModule):
 
     def predict_step(self, batch, *args: Any, **kwargs: Any) -> Any:
         pred = self.model(**batch)
-        self.log('predict_value', pred)
-        return pred
+        if self.prediction_output_x:
+            return pred, batch['y'], batch['x']
+        else:
+            return pred, batch['y']
     

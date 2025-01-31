@@ -1,6 +1,7 @@
 import torch
 import argparse
 from typing import Optional, List
+import matplotlib.pyplot as plt
 
 """
     To support other models, define the correspondent parser class as follows!
@@ -15,7 +16,7 @@ class BaseModelParser():
         pass
 
     def get_model(self, args):
-        return torch.nn.Identity()        
+        return torch.nn.Identity()
 
 class BaseDataParser():
     def __init__(self) -> None:
@@ -26,9 +27,9 @@ class BaseDataParser():
 
     def get_data(self, args):
         raise NotImplementedError
+    
 
-
-def add_base_args(parser:argparse.ArgumentParser):
+def add_train_args(parser:argparse.ArgumentParser):
     # # # Data Loader Configs # # #
     parser.add_argument('--batch_size', type=int, default=32) #
     # # # Model Configs # # #
@@ -54,8 +55,24 @@ def add_base_args(parser:argparse.ArgumentParser):
     return
 
 
+def add_eval_args(parser:argparse.ArgumentParser):
+    parser.add_argument('--batch_size', type=int, default=32) #
+    # # # Model Configs # # #
+    parser.add_argument('--load_path', type=str, default='', help='load checkpoint')
+    # # # Optimizer Configs # # #
+    parser.add_argument('--eval_loss', type=str, nargs='+', default=['h1', 'l2'], help='h1 or l2 or l1') #
+    parser.add_argument('--loss_reduction', type=str, default='sum', help='sum or mean') #
+
+    # # # Log and Save Configs # # #
+    parser.add_argument('--save_dir', type=str, default='')
+    parser.add_argument('--log_input', type=int, default=0)
+    parser.add_argument('--verbose', type=int, default=1)
+    parser.add_argument('--visualize_example', type=int, default=0, help='Whether to visualize the output')
+    return
+
+
 class Fetcher():
-    def __init__(self, DataParsers:Optional[List[BaseDataParser]]=None, ModelParsers:Optional[List[BaseModelParser]]=None, multi_task=False) -> None:
+    def __init__(self, DataParsers:Optional[List[BaseDataParser]]=None, ModelParsers:Optional[List[BaseModelParser]]=None, mode='train') -> None:
         self.DataParsers = DataParsers
         self.ModelParsers = ModelParsers
         if self.DataParsers == None:
@@ -64,7 +81,7 @@ class Fetcher():
             self.ModelParsers = BaseModelParser.__subclasses__()
         self.data_fetcher = {}
         self.model_fetcher = {}
-        self.multi_task = multi_task
+        self.mode = mode
 
     def parse_args(self, args=None):
         parser = argparse.ArgumentParser('NeuralOps', add_help=False)
@@ -84,7 +101,10 @@ class Fetcher():
                 model_name = model_parser_instance.name
                 subsubparser = model_subparsers.add_parser(model_name, help=f'Train {model_name} on {data_name}')
 
-                add_base_args(subsubparser)
+                if self.mode == 'train':
+                    add_train_args(subsubparser)
+                elif self.mode == 'test' or self.mode == 'predict':
+                    add_eval_args(subsubparser)
                 data_parser_instance.add_parser_args(subsubparser)
                 model_parser_instance.add_parser_args(subsubparser)
                 self.model_fetcher[model_name] = model_parser_class
@@ -98,6 +118,10 @@ class Fetcher():
     def get_model(self, args)->torch.nn.Module:
         model_name = args.model
         return self.model_fetcher[model_name]().get_model(args)
+    
+    def get_visualizing_function(self, args):
+        data_name = args.data
+        return self.data_fetcher[data_name].visualize
 
 
 if __name__ == "__main__":

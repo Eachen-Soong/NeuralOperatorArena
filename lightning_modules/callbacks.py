@@ -5,6 +5,7 @@ from typing import Optional
 import psutil
 import string
 from lightning.pytorch.utilities import CombinedLoader
+from lightning.pytorch.callbacks import BasePredictionWriter
 from lightning.pytorch.trainer import Trainer
 import os
 
@@ -55,6 +56,32 @@ class MemoryMonitoringCallback(L.Callback):
 
     def on_test_epoch_end(self, trainer, pl_module):
         self.log_memory_usage('Test End')
+
+
+class OutputEncoderCallback(L.Callback):
+    
+    def __init__(self, encoder):
+        """
+        Callback class for a training loop that involves
+        an output normalizer but no MG patching.
+
+        Parameters
+        -----------
+        encoder : neuralop.datasets.output_encoder.OutputEncoder
+            module to normalize model inputs/outputs
+        """
+        super().__init__()
+        self.encoder = encoder
+    
+    def on_batch_start(self, *args, **kwargs):
+        self._update_state_dict(**kwargs)
+    
+    def on_before_loss(self, out):
+        self.state_dict['out'] = self.encoder.decode(out)
+        self.state_dict['sample']['y'] = self.encoder.decode(self.state_dict['sample']['y'])
+    
+    def on_before_val_loss(self, **kwargs):
+        return self.on_before_loss(**kwargs)
 
 
 class CustomModelCheckpoint(L.Callback):
@@ -165,6 +192,20 @@ class AggregateMetricCallback(L.Callback):
                 print("self.metric_groups set: ", metric_names, self.metric_groups)
         pl_module.log_dict(self.aggregate_metrics(logs))
         return super().on_validation_epoch_end(trainer, pl_module)
+
+
+class PredictionWriter(BasePredictionWriter):
+    def __init__(self, output_dir, write_interval):
+        super().__init__(write_interval)
+        self.output_dir = output_dir
+
+    # def write_on_batch_end(
+    #     self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx
+    # ):
+    #     torch.save(prediction, os.path.join(self.output_dir, dataloader_idx, f"{batch_idx}.pt"))
+    def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
+        torch.save(predictions, os.path.join(self.output_dir, "predictions.pt"))
+        
 
 
 class FooCallback(L.Callback):

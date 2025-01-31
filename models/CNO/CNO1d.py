@@ -15,7 +15,7 @@ import torch.nn as nn
 import os
 import numpy as np
 import torch.nn.functional as F
-
+from .layers import ProductLayer1D
 
 # CNO LReLu activation fucntion
 # CNO building block (CNOBlock) → Conv1d - BatchNorm - Activation

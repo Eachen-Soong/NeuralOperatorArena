@@ -250,7 +250,7 @@ class MultiTaskCylinderFlowParser(BaseDataParser):
         for i in range(len(n_test)):
             loader = load_cylinder2d(
                 data_dir=test_path[i], n_data=n_test[i], batch_size=args.batch_size, 
-                subsample_rate=args.test_subsample_rate, time_step=args.time_step, shuffle=True
+                subsample_rate=args.test_subsample_rate, time_step=args.time_step, shuffle=False
             )
             val_loaders.append(loader)
             

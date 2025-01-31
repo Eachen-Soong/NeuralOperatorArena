@@ -17,8 +17,8 @@ class ns_contextual_loader(DataLoader):
         (for ns_contextual: the grid stuff, and expanding the 'f', 'mu' batch_size-1 more times)
         Note that The dataset should be 2D here.
     """
-    def __init__(self, dataset, batch_size, shuffle=True, num_workers=0, append_positional_encoding=False, positional_encoding=None, grid_boundaries=[[0,1],[0,1]], channel_dim=1):
-        super(ns_contextual_loader, self).__init__(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True)
+    def __init__(self, dataset, batch_size, shuffle=True, num_workers=0, append_positional_encoding=False, positional_encoding=None, grid_boundaries=[[0,1],[0,1]], channel_dim=1, **kwargs):
+        super(ns_contextual_loader, self).__init__(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, **kwargs)
         self.spacial_resolution = None
         self.dim_appenders = [] # [(name, broadcasdefault_collatet function)]
         self.append_positional_encoding = append_positional_encoding

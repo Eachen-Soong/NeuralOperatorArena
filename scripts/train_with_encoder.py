@@ -5,6 +5,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+import time
 
 # import debugpy
 # try:
@@ -14,10 +15,6 @@ os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 #     debugpy.wait_for_client()
 # except Exception as e:
 #     pass
-
-import time
-import yaml
-from types import SimpleNamespace
 
 import torch
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint, Timer
@@ -32,6 +29,7 @@ from utils.losses import LpLoss, H1Loss
 from scripts.get_parser import Fetcher
 from scripts.models import FNOParser, LSMParser, CNOParser, FNO_OriginalParser
 from scripts.datasets import BurgersParser, DarcyParser, TorusLiParser, TorusVisForceParser
+from lightning_modules.callbacks import OutputEncoderCallback
 
 ModelParsers = [FNOParser, LSMParser, CNOParser, FNO_OriginalParser]
 DataParsers = [BurgersParser, DarcyParser, TorusLiParser, TorusVisForceParser]
@@ -49,25 +47,15 @@ def run(raw_args=None):
     
     # # # Data Preparation # # #
     train_loader, val_loader = fetcher.get_data(args)
+
     
     # # # Create Lightning Module # # #
     # 1. Model Definition
     model = fetcher.get_model(args)
-
-    hparams_path = os.path.join(args.load_path, 'hparams.yaml')
-    if os.path.exists(hparams_path):
-        with open(hparams_path) as stream:
-            try:
-                hparams = SimpleNamespace(**yaml.safe_load(stream))
-            except yaml.YAMLError as exc:
-                print(exc)
-    else:
-        hparams = args
-    # print(hparams)
-    model = fetcher.get_model(hparams)
-
     del fetcher
 
+    if args.load_path != '':
+        model.load_state_dict(torch.load(args.load_path))
     
     # 2. Optimizer Definition
     optimizer = torch.optim.Adam(model.parameters(), 

@@ -28,3 +28,8 @@ Then one may customize his own training script concisely.
 
 ### Running configs
 for linux environments, prepare your scripts in `./shell_scripts/`.
+
+To extract logs, run:
+```
+tb-reducer runs/YOUR_FOLDER -o OUTPUT_PATH/BLABLABLA.csv --handle-dup-steps mean
+```
