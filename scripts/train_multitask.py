@@ -52,7 +52,7 @@ def run(raw_args=None):
     # # # Data Preparation # # #
     train_loader, val_loader = fetcher.get_data(args)
     assert type(train_loader) == type([]) and type(val_loader) == type([]), 'The type of train_loader and val_loader should be a list!!!'
-
+    
     # # # Create Lightning Module # # #
     # 1. Model Definition
     hparams_path = os.path.join(args.load_path, 'hparams.yaml')
