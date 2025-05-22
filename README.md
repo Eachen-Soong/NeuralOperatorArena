@@ -1,4 +1,4 @@
-# DimOL: Dimension-awareness is All you need for Operator Learning
+# Neural Operator Arena: a collection of most of the latest Neural Operators!
 
 ## Project structure:
 ### Data: 
