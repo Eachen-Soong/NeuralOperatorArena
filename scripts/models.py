@@ -1,5 +1,5 @@
 from .get_parser import BaseModelParser
-from models import FNO, LSM_2D, CNO1d, CNO2d, FNO_2D_Original, ProdFNO_2D_Original, FNO_1D_Original, ProdFNO_1D_Original, DimFNO
+from NeuralOperators import FNO, LSM_2D, CNO1d, CNO2d, FNO_2D_Original, ProdFNO_2D_Original, FNO_1D_Original, ProdFNO_1D_Original, DimFNO
 
 
 class FNOParser(BaseModelParser):
