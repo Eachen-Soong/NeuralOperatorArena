@@ -78,5 +78,3 @@ class ns_contextual_loader(DataLoader):
         # If the dataset only has one predictable target
         new_batch['y'].unsqueeze_(self.channel_dim)
         return new_batch
-
-

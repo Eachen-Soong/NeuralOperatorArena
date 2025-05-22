@@ -1,5 +1,5 @@
 from .get_parser import BaseDataParser
-from data.datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit, load_autoregressive_traintestsplit_v3, load_autoregressive_multitask_mu_preordered, load_autoregressive_traintestsplit_v1, load_cylinder2d_traintestsplit, load_cylinder2d
+from data.datasets import load_burgers_mat, load_darcy_mat, load_autoregressive_traintestsplit_dim, load_autoregressive_traintestsplit_v3, load_autoregressive_multitask_mu_preordered, load_autoregressive_traintestsplit_v1, load_cylinder2d_traintestsplit, load_cylinder2d
 from data.datasets.dataloader import ns_contextual_loader
 import torch
 import numpy as np
@@ -98,9 +98,9 @@ def gen_similar_dataloaders_dt_divided_p(origin_loader, scaling_ps, batch_size=0
         origin_item =  self.get_item(index, p_int)
         new_item = {}
         new_item['x'] = origin_item['x'] * p
+        new_item['x'][:, 1, ...] = origin_item['x'][:, 1, ...] * p # forcing
         new_item['y'] = origin_item['y'] * p
-        new_item['mu'] = origin_item['mu'] * p
-        new_item['f'] = origin_item['f'] * (p * p)
+        new_item['consts'] = origin_item['consts'] * p
         return new_item
 
     sim_loaders = {}
@@ -125,6 +125,75 @@ def gen_similar_dataloaders_dt_divided_p(origin_loader, scaling_ps, batch_size=0
 
     return sim_loaders
 
+
+class TorusVisForceDimParser(BaseDataParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = 'TorusVisForceDim'
+        self.var_field_pred_names = []
+        self.var_field_nonpred_names = []
+        self.const_field_names = []
+        self.constants_names = []
+
+    def add_parser_args(self, parser):
+        super().add_parser_args(parser)
+        parser.add_argument('--data_path', type=str, default='', help="the path of data file")
+        parser.add_argument('--n_train', type=int, default=-1)
+        parser.add_argument('--n_test', type=int, default=-1)
+        parser.add_argument('--train_subsample_rate', type=int, default=1)
+        parser.add_argument('--test_subsample_rate', type=int, nargs="+", default=1)
+        parser.add_argument('--time_step', type=int, default=1, help='subsample rate of time')
+        parser.add_argument('--time_skips', type=int, default=1, help='subsample rate of time')
+        parser.add_argument('--predict_feature', type=str, nargs='+', default=['u'])
+        parser.add_argument('--simaug_coeff', type=int, nargs='+', default=0)
+        return
+    
+    def get_data(self, args):
+        seperate_consts = args.norm == "dim_norm"
+        train_loader, val_loader = load_autoregressive_traintestsplit_dim(
+            data_path=args.data_path, n_train=args.n_train, n_tests=args.n_test, batch_size=args.batch_size, test_batch_size = args.batch_size, 
+            train_subsample_rate=args.train_subsample_rate, test_subsample_rates=args.test_subsample_rate, time_step=args.time_step, time_skips=args.time_skips,
+            predict_features=args.predict_feature, seperate_consts=seperate_consts
+        )
+        
+        # if args.simaug_coeff != 0:
+        #     sim_loaders = gen_similar_dataloaders_dt_divided_p(train_loader, scaling_ps=args.simaug_coeff, batch_size=train_loader.batch_size)
+        #     val_loader.update(sim_loaders)
+        # else: print("No simaug")
+
+        return train_loader, val_loader
+
+    def get_dim_aligner(self, args):
+        """
+        The dataset consists of u(vorticity), mu(viscosity), f(external force).
+        By didmensional analysis, here we consider 3 dimensionless number:
+        1; Reynolds = rho v d / mu ~~ v / mu; Froude = v / sqrt(f L) ~~ v / sqrt(f)
+        """
+        n_dim = args.n_dim
+        normalization_dims = list(range(2, 2+n_dim))
+        # def get_normalizer(x, consts, **kwargs):
+        #     mu = torch.mean(x, dim=normalization_dims)
+        #     mean = torch.sqrt(torch.mean(torch.square(x), dim=normalization_dims))
+        #     std = torch.sqrt(mean**2 - mu**2)
+        #     Re_std = std[:, 0:1] / consts[:, 0:]
+        #     Fr_std = std[:, 0:1] / mean[:, 1:]
+        #     ones = torch.ones_like(Re_std)
+        #     Re_mu = mu[:, 0:1] / consts[:, 0:]
+        #     Fr_mu = mu[:, 0:1] / mean[:, 1:]
+        #     return mu, std, torch.cat([ones, Re_mu, Fr_mu], dim=1), torch.cat([ones, Re_std, Fr_std], dim=1)
+        def get_normalizer(x, consts, **kwargs):
+            mu = torch.mean(x, dim=normalization_dims)
+            mean = torch.sqrt(torch.mean(torch.square(x), dim=normalization_dims))
+            std = torch.sqrt(mean**2 - mu**2)
+            St_inv_std = 1 / std[:, 0:1]
+            Re_St_inv_std = consts[:, 0:] / std[:, 0:1]**2
+            Fr_sq_St_inv_std = std[:, 1:] / std[:, 0:1]**3
+
+            ones = torch.ones_like(Re_St_inv_std)
+            # Re_mu = mu[:, 0:1] / consts[:, 0:]
+            # Fr_mu = mu[:, 0:1] / mean[:, 1:]
+            return mu, std, torch.cat([ones, ones, ones, ones], dim=1), torch.cat([ones, St_inv_std, Re_St_inv_std, Fr_sq_St_inv_std], dim=1)
+        return get_normalizer
 
 class TorusVisForceParser(BaseDataParser):
     def __init__(self) -> None:

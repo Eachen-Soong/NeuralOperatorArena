@@ -2,7 +2,7 @@
 # from .fno import FNO, FNO1d, FNO2d, FNO3d
 from .fno import SFNO
 from .uno import UNO
-from .new_fno import F_FNO2D, FNO, AttnFNO2D, SpecProdFNO
+from .new_fno import F_FNO2D, FNO, SpecProdFNO, DimFNO
 from .FNO_Original import FNO_2D as FNO_2D_Original
 from .FNO_Original import ProdFNO_2D_test as ProdFNO_2D_Original
 from .FNO_Original import FNO_1D as FNO_1D_Original

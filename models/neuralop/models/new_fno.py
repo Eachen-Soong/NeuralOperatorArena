@@ -1,14 +1,64 @@
 from functools import partialmethod
+from typing import Callable
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from einops import repeat
 
 from ..layers.spectral_convolution import SpectralConv
 from ..layers.spherical_convolution import SphericalConv
 from ..layers.new_spectral_conv import SpectralConvProd, SpectralConvAttn2d
 from ..layers.padding import DomainPadding
-from ..layers.fno_block import FNOBlocks1, F_FNOBlocks2D
+from ..layers.fno_block import FNOBlocks1, F_FNOBlocks2D, DimFNOBlocks
 from ..layers.mlp import MLP
+
+
+def get_grid_positional_encoding(input_tensor, grid_boundaries=[[0,1],[0,1]], channel_dim=1):
+    """
+        Appends grid positional encoding to an input tensor, concatenating as additional dimensions along the channels
+    """
+    shape = list(input_tensor.shape)
+    height, width = shape[-2:]
+    
+    xt = torch.linspace(grid_boundaries[0][0], grid_boundaries[0][1], height + 1)[:-1]
+    yt = torch.linspace(grid_boundaries[1][0], grid_boundaries[1][1], width + 1)[:-1]
+
+    grid_x, grid_y = torch.meshgrid(xt, yt, indexing='ij')
+
+    if len(shape) == 2:
+        grid_x = grid_x.repeat(1, 1).unsqueeze(channel_dim)
+        grid_y = grid_y.repeat(1, 1).unsqueeze(channel_dim)
+    else:
+        grid_x = grid_x.repeat(1, 1).unsqueeze(0).unsqueeze(channel_dim)
+        grid_y = grid_y.repeat(1, 1).unsqueeze(0).unsqueeze(channel_dim)
+    
+    return torch.cat([grid_x, grid_y], dim=channel_dim)
+
+
+def get_grid_positional_encoding_3d(input_tensor, grid_boundaries=[[0,1],[0,1],[0,1]], channel_dim=1):
+    """
+        Appends grid positional encoding to an input tensor, concatenating as additional dimensions along the channels
+    """
+    shape = list(input_tensor.shape)
+    height, width, depth = shape[-3:]
+    
+    xt = torch.linspace(grid_boundaries[0][0], grid_boundaries[0][1], height + 1)[:-1]
+    yt = torch.linspace(grid_boundaries[1][0], grid_boundaries[1][1], width + 1)[:-1]
+    zt = torch.linspace(grid_boundaries[2][0], grid_boundaries[2][1], depth + 1)[:-1]
+
+    grid_x, grid_y, grid_z = torch.meshgrid(xt, yt, zt, indexing='ijk')
+
+    if len(shape) == 3:
+        grid_x = grid_x.repeat(1, 1).unsqueeze(channel_dim)
+        grid_y = grid_y.repeat(1, 1).unsqueeze(channel_dim)
+        grid_z = grid_z.repeat(1, 1).unsqueeze(channel_dim)
+    else:
+        grid_x = grid_x.repeat(1, 1).unsqueeze(0).unsqueeze(channel_dim)
+        grid_y = grid_y.repeat(1, 1).unsqueeze(0).unsqueeze(channel_dim)
+        grid_z = grid_z.repeat(1, 1).unsqueeze(0).unsqueeze(channel_dim)
+
+    return grid_x, grid_y, grid_z
 
 
 class FNO(nn.Module):
@@ -88,6 +138,7 @@ class FNO(nn.Module):
         How to perform domain padding, by default 'one-sided'
     fft_norm : str, optional
         by default 'forward'
+    positional_encoding : bool, whether to append the positional encoding.
     """
 
     def __init__(
@@ -122,6 +173,7 @@ class FNO(nn.Module):
         domain_padding=None,
         domain_padding_mode="one-sided",
         fft_norm="forward",
+        positional_encoding=False,
         SpectralConv=SpectralConv,
         **kwargs
     ):
@@ -132,6 +184,15 @@ class FNO(nn.Module):
         self.lifting_channels = lifting_channels
         self.projection_channels = projection_channels
         self.in_channels = in_channels
+        self.positional_encoding = None
+        self.positional_encoding_cached = None
+        if positional_encoding:
+            self.in_channels += self.n_dim
+            if self.n_dim == 2:
+                self.positional_encoding = get_grid_positional_encoding
+            if self.n_dim == 3:
+                self.positional_encoding = get_grid_positional_encoding_3d
+        
         self.out_channels = out_channels
         self.n_layers = n_layers
         self.joint_factorization = joint_factorization
@@ -207,7 +268,7 @@ class FNO(nn.Module):
         # with a hidden layer of size lifting_channels
         if self.lifting_channels:
             self.lifting = MLP(
-                in_channels=in_channels,
+                in_channels=self.in_channels,
                 out_channels=self.hidden_channels,
                 hidden_channels=self.lifting_channels,
                 n_layers=2,
@@ -216,7 +277,7 @@ class FNO(nn.Module):
         # otherwise, make it a linear layer
         else:
             self.lifting = MLP(
-                in_channels=in_channels,
+                in_channels=self.in_channels,
                 out_channels=self.hidden_channels,
                 hidden_channels=self.hidden_channels,
                 n_layers=1,
@@ -244,6 +305,11 @@ class FNO(nn.Module):
             * If tuple, specifies the output-shape of the **last** FNO Block
             * If tuple list, specifies the exact output-shape of each FNO Block
         """
+        if self.positional_encoding is not None:
+            if self.positional_encoding_cached is None:
+                self.positional_encoding_cached = self.positional_encoding(x).to(x.device)
+            grids = self.positional_encoding_cached.repeat(x.shape[0], *([1]*(self.n_dim+1)))
+            x = torch.cat([x, grids], dim=1)
         if output_shape is None:
             output_shape = [None]*self.n_layers
         elif isinstance(output_shape, tuple):
@@ -703,17 +769,20 @@ class F_FNO2D(nn.Module):
         self.fno_blocks.incremental_n_modes = incremental_n_modes
 
 
-class AttnFNO2D(nn.Module):
+class DimFNO(nn.Module):
+    """N-Dimensional Fourier Neural Operator
+
+    """
     def __init__(
         self,
         n_modes,
         hidden_channels,
         in_channels=3,
+        in_consts=1,
+        append_const=False,
         out_channels=1,
         lifting_channels=256,
         projection_channels=256,
-        dk=0,
-        n_heads=2,
         n_layers=4,
         output_scaling_factor=None,
         incremental_n_modes=None,
@@ -725,19 +794,23 @@ class AttnFNO2D(nn.Module):
         non_linearity=F.gelu,
         stabilizer=None,
         norm=None,
+        align_prediction_dims=[],
+        num_consts=1,
         preactivation=False,
         fno_skip="linear",
         mixer_skip="soft-gating",
         separable=False,
-        factorization=None,
+        factorization='',
         rank=1.0,
         joint_factorization=False,
         fixed_rank_modes=False,
-        implementation=None,
+        implementation="factorized",
         decomposition_kwargs=dict(),
         domain_padding=None,
         domain_padding_mode="one-sided",
         fft_norm="forward",
+        SpectralConv=SpectralConv,
+        positional_encoding=False,
         **kwargs
     ):
         super().__init__()
@@ -747,11 +820,23 @@ class AttnFNO2D(nn.Module):
         self.lifting_channels = lifting_channels
         self.projection_channels = projection_channels
         self.in_channels = in_channels
+        self.positional_encoding = None
+        self.positional_encoding_cached = None
+        if positional_encoding:
+            self.in_channels += self.n_dim
+            if self.n_dim == 2:
+                self.positional_encoding = get_grid_positional_encoding
+            if self.n_dim == 3:
+                self.positional_encoding = get_grid_positional_encoding_3d
+        if not append_const and norm == 'dim_norm':
+            self.in_channels -= in_consts
+        self.append_const = append_const
         self.out_channels = out_channels
         self.n_layers = n_layers
         self.joint_factorization = joint_factorization
         self.non_linearity = non_linearity
         self.rank = rank
+        if factorization == '': factorization = None # newly added
         self.factorization = factorization
         self.fixed_rank_modes = fixed_rank_modes
         self.decomposition_kwargs = decomposition_kwargs
@@ -787,12 +872,10 @@ class AttnFNO2D(nn.Module):
                 output_scaling_factor = [output_scaling_factor] * self.n_layers
         self.output_scaling_factor = output_scaling_factor
 
-        self.fno_blocks = FNOBlocks1(
+        self.fno_blocks = DimFNOBlocks(
             in_channels=hidden_channels,
             out_channels=hidden_channels,
             n_modes=self.n_modes,
-            dk=0,
-            n_heads=2,
             output_scaling_factor=output_scaling_factor,
             channel_mixing=channel_mixing,
             mlp_dropout=mlp_dropout,
@@ -801,6 +884,7 @@ class AttnFNO2D(nn.Module):
             non_linearity=non_linearity,
             stabilizer=stabilizer,
             norm=norm,
+            num_consts=num_consts,
             preactivation=preactivation,
             fno_skip=fno_skip,
             mixer_skip=mixer_skip,
@@ -814,7 +898,7 @@ class AttnFNO2D(nn.Module):
             factorization=factorization,
             decomposition_kwargs=decomposition_kwargs,
             joint_factorization=joint_factorization,
-            SpectralConv=SpectralConvAttn2d,
+            SpectralConv=SpectralConv,
             n_layers=n_layers,
             **kwargs
         )
@@ -823,7 +907,7 @@ class AttnFNO2D(nn.Module):
         # with a hidden layer of size lifting_channels
         if self.lifting_channels:
             self.lifting = MLP(
-                in_channels=in_channels,
+                in_channels=self.in_channels,
                 out_channels=self.hidden_channels,
                 hidden_channels=self.lifting_channels,
                 n_layers=2,
@@ -832,7 +916,7 @@ class AttnFNO2D(nn.Module):
         # otherwise, make it a linear layer
         else:
             self.lifting = MLP(
-                in_channels=in_channels,
+                in_channels=self.in_channels,
                 out_channels=self.hidden_channels,
                 hidden_channels=self.hidden_channels,
                 n_layers=1,
@@ -846,8 +930,55 @@ class AttnFNO2D(nn.Module):
             n_dim=self.n_dim,
             non_linearity=non_linearity,
         )
+        self.forward = self.forward_dim if norm == 'dim_norm' else self.forward_original
+        self.prediction_dims = align_prediction_dims
+        self.align_predictions = bool(len(align_prediction_dims))
+        if self.align_predictions:
+            assert len(align_prediction_dims) == out_channels, 'Number of alignments should be exactly out_channels! Now have: {}, {}'.format(len(align_prediction_dims), out_channels)
 
-    def forward(self, x, output_shape=None, **kwargs):
+        if self.n_dim == 2: broadcast_function = lambda data, spacial_resolution: repeat(data, 'b c -> b c m n', m=spacial_resolution[0], n=spacial_resolution[1])
+        elif self.n_dim == 1: broadcast_function = lambda data, spacial_resolution: repeat(data, 'b c -> b c m', m=spacial_resolution[0])
+        elif self.n_dim == 3: broadcast_function = lambda data, spacial_resolution: repeat(data, 'b c -> b c m n p', m=spacial_resolution[0], n=spacial_resolution[1], p=spacial_resolution[2])
+        self.broadcast_function = broadcast_function
+
+        self.dim_aligner = lambda mu, std, **kwargs: (mu, std, mu, std)
+        self.num_consts = num_consts
+        
+        group_N = hidden_channels//out_channels
+        num_group1 = hidden_channels%out_channels
+        if num_group1:
+            def extend(consts:torch.Tensor):
+                return torch.cat([consts[:, :num_group1].repeat(1, group_N+1), consts[:, num_group1:].repeat(1, group_N)], dim=1)
+        else:
+            def extend(consts:torch.Tensor):
+                return consts.repeat(1, group_N)
+        if self.n_dim == 2:
+            def transform(weight, bias, x):
+                return torch.einsum('bc, bcxy -> bcxy', weight, x, ) + repeat(bias, 'b c -> b c x y', x=x.shape[-2], y=x.shape[-1])
+        elif self.n_dim == 1:
+            def transform(weight, bias, x):
+                return torch.einsum('bc, bcx -> bcx', weight, x,) + repeat(bias, 'b c -> b c x', x=x.shape[-1])
+        elif self.n_dim == 3:
+            def transform(weight, bias, x):
+                return torch.einsum('bc, bcxyz -> bcxyz', weight, x, ) + repeat(bias, 'b c -> b c x y z', x=x.shape[-3], y=x.shape[-2], z=x.shape[-1])
+        else:
+            transform = lambda weight, bias, x: x
+
+        def align_last(x, std, mu):
+            weight = extend(std)
+            bias = extend(mu)
+            x = nn.functional.instance_norm(x)
+            return transform(weight, bias, x)
+        
+        self.align_last = align_last
+
+    def set_dim_aligner(self, function:Callable):
+        self.dim_aligner = function
+
+    def set_dimnorm_coeffs(self, weight_coeff, bias_coeff):
+        self.fno_blocks.set_dimnorm_coeffs(weight_coeff, bias_coeff)
+
+    def forward_original(self, x, output_shape=None, **kwargs):
         """TFNO's forward pass
 
         Parameters
@@ -860,12 +991,17 @@ class AttnFNO2D(nn.Module):
             * If tuple, specifies the output-shape of the **last** FNO Block
             * If tuple list, specifies the exact output-shape of each FNO Block
         """
-
         if output_shape is None:
             output_shape = [None]*self.n_layers
         elif isinstance(output_shape, tuple):
             output_shape = [None]*(self.n_layers - 1) + [output_shape]
-            
+        
+        if self.positional_encoding is not None:
+            if self.positional_encoding_cached is None:
+                self.positional_encoding_cached = self.positional_encoding(x).to(x.device)
+            grids = self.positional_encoding_cached.repeat(x.shape[0], *([1]*(self.n_dim+1)))
+            x = torch.cat([x, grids], dim=1)
+
         x = self.lifting(x)
 
         if self.domain_padding is not None:
@@ -880,6 +1016,54 @@ class AttnFNO2D(nn.Module):
         x = self.projection(x)
 
         return x
+
+    def forward_dim(self, x, output_shape=None, **kwargs):
+        """TFNO's forward pass
+
+        Parameters
+        ----------
+        x : tensor
+            input tensor
+        output_shape : {tuple, tuple list, None}, default is None
+            Gives the option of specifying the exact output shape for odd shaped inputs.
+            * If None, don't specify an output shape
+            * If tuple, specifies the output-shape of the **last** FNO Block
+            * If tuple list, specifies the exact output-shape of each FNO Block
+        """
+        if output_shape is None:
+            output_shape = [None]*self.n_layers
+        elif isinstance(output_shape, tuple):
+            output_shape = [None]*(self.n_layers - 1) + [output_shape]
+
+        mu, std, aligned_mu, aligned_std = self.dim_aligner(x, **kwargs)
+
+        if self.positional_encoding is not None:
+            if self.positional_encoding_cached is None:
+                self.positional_encoding_cached = self.positional_encoding(x).to(x.device)
+            grids = self.positional_encoding_cached.repeat(x.shape[0], *([1]*(self.n_dim+1)))
+            x = torch.cat([x, grids], dim=1)
+
+        if self.append_const:
+            consts = self.broadcast_function(kwargs['consts'], x.shape[2:])
+            x = torch.cat([x, consts], dim=1)
+        x = self.lifting(x)
+
+        if self.domain_padding is not None:
+            x = self.domain_padding.pad(x)
+
+        for layer_idx in range(self.n_layers):
+            x = self.fno_blocks(x, aligned_mu, aligned_std, layer_idx, output_shape=output_shape[layer_idx])
+
+        if self.domain_padding is not None:
+            x = self.domain_padding.unpad(x)
+
+        if self.align_predictions:
+            x = self.align_last(x, std[:, self.prediction_dims], mu[:, self.prediction_dims], )
+        
+        x = self.projection(x)
+
+        return x
+
 
     @property
     def incremental_n_modes(self):
