@@ -1,0 +1,6 @@
+[submodule "NeuralOperators"]
+	path = NeuralOperators
+	url = https://github.com/Eachen-Soong/NeuralOperators.git
+[submodule "NeuralOperatorDatasets"]
+	path = NeuralOperatorDatasets
+	url = https://github.com/Eachen-Soong/NeuralOperatorDatasets.git
